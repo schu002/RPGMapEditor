@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+
+<!--
+	ユーザ別環境設定
+
+	このファイルを修正しても、自動で再読み込みされません。
+	[プロジェクト][ソリューションの再スキャン]を実行してください。
+ -->
+
+  <PropertyGroup Label="UserMacros" >
+
+<!-- ▲▲▲　カスタマイズここから　▲▲▲ -->
+
+    <QTDIR_32>D:\tool\Qt338</QTDIR_32>
+    <QTDIR_64>D:\tool\Qt338_x64</QTDIR_64>
+
+<!-- ▲▲▲　カスタマイズここまで　▲▲▲ -->
+
+  </PropertyGroup>
+
+<PropertyGroup Label="UserMacros"  Condition=" '$(Platform)' == 'Win32' ">
+	<QTDIR>$(QTDIR_32)</QTDIR>
+</PropertyGroup>
+<PropertyGroup Label="UserMacros"  Condition=" '$(Platform)' == 'x64' ">
+	<QTDIR>$(QTDIR_64)</QTDIR>
+</PropertyGroup>
+
+<!-- 以下はこの定義をbuild時に環境変数にも設定するためのもの -->
+  <ItemGroup>
+    <BuildMacro Include="QTDIR">
+      <Value>$(QTDIR)</Value>
+    </BuildMacro>
+    <BuildMacro Include="OA_INSTDIR">
+      <Value>$(OA_INSTDIR)</Value>
+    </BuildMacro>
+  </ItemGroup>
+
+<!-- 追加のシンボル
+	MOCEXE		moc.exeのフルパス付です
+	RCCEXE		rcc.exeのフルパス付です
+ -->
+
+<PropertyGroup Label="UserMacros">
+	<MOCEXE>$(QTDIR)\bin\moc.exe</MOCEXE>
+	<RCCEXE>$(QTDIR)\bin\rcc.exe</RCCEXE>
+</PropertyGroup>
+
+<!-- 追加のコンパイルオプション、インクルードディレクトリ -->
+
+
+<ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Zm210 %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4267;4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(QTDIR)\lib;%(AdditionalIncludeDirectories)</AdditionalLibraryDirectories>
+	</Link>
+</ItemDefinitionGroup>
+
+<ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Zm210 %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4267;4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(QTDIR)\lib;%(AdditionalIncludeDirectories)</AdditionalLibraryDirectories>
+	</Link>
+</ItemDefinitionGroup>
+
+
+</Project>
