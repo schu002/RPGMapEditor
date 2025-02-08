@@ -1,0 +1,15 @@
+/Build/Win32
+/Build/x64
+/Build/lib
+/Build/.vs
+/Build/sxmsetenv.props
+/test/icon
+*.dll
+*.exe
+*.user
+*.suo
+*.ipch
+*.VC.db
+*.zip
+moc_*.h
+*_moc.h
