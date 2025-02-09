@@ -33,9 +33,10 @@ string trim(const std::string &s)
 };
 
 MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
- :	QMainWindow(NULL, FALSE, pFlag), mFileMenu(NULL), mEditMenu(NULL), mSettingBtn(NULL),
-	mMenuGrid(-1),
+ :	QMainWindow(NULL, FALSE, pFlag), mFileMenu(NULL), mEditMenu(NULL),
+	mMenuUndo(-1), mMenuRedo(-1), mMenuGrid(-1),
 	mGridBtn(NULL),
+	mUndoBtn(NULL), mRedoBtn(NULL), mSettingBtn(NULL),
 	mIconTable(NULL), mMapTable(NULL), mDataDir(pCurDir), mIsModified(false)
 {
 	mFileName = Message::TrC(MG_DefaultDataFile);
@@ -63,6 +64,9 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 	menuBar()->insertItem(M_QSTR(Message::TrC(MG_File)), mFileMenu);
 
 	mEditMenu = new QPopupMenu(this, "Edit");
+	mMenuUndo = mEditMenu->insertItem(iconUndo, M_QSTR(Message::TrC(MG_Undo)), this, SLOT(Undo()), CTRL+Key_Z);
+	mMenuRedo = mEditMenu->insertItem(iconRedo, M_QSTR(Message::TrC(MG_Redo)), this, SLOT(Redo()), CTRL+Key_R);
+	mEditMenu->insertSeparator();
 	mMenuGrid = mEditMenu->insertItem(iconGrid, M_QSTR(Message::TrC(MG_ShowGrid) + Message::TrC(MG_ON)),
 		this, SLOT(OnGridMenu()), CTRL+Key_G);
 	mEditMenu->setItemChecked(mMenuGrid, true);
@@ -78,6 +82,12 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 					"", this, SLOT(Open()), toolbar, "Open");
 	mSaveBtn = new QToolButton(iconSave, M_QSTR(Message::TrC(MG_File_Save)),
 					"", this, SLOT(Save()), toolbar, "Save");
+	toolbar->addSeparator();
+
+	mUndoBtn = new QToolButton(iconUndo, M_QSTR(Message::TrC(MG_Undo)),
+					"", this, SLOT(Undo()), toolbar, "Undo");
+	mRedoBtn = new QToolButton(iconRedo, M_QSTR(Message::TrC(MG_Redo)),
+					"", this, SLOT(Redo()), toolbar, "Redo");
 	toolbar->addSeparator();
 
 	mGridBtn = new QToolButton(iconGrid, M_QSTR(Message::TrC(MG_ShowGrid) + Message::TrC(MG_ON)),
@@ -121,6 +131,8 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 	statusBar()->message(M_QSTR(Message::TrC(MG_IconFileNotRegist)));
 
 	LoadMapFile();
+	SetUndoEnable(false);
+	SetRedoEnable(false);
 }
 
 void MainWindow::Open()
@@ -161,6 +173,44 @@ void MainWindow::Exit()
 		if (ret == QMessageBox::Yes) Save();
 	}
 	qApp->quit();
+}
+
+/*　元に戻す　*/
+void MainWindow::Undo()
+{
+	if (!mMapTable->Undo()) {
+		mEditMenu->setItemEnabled(mMenuUndo, false);
+		mUndoBtn->setEnabled(false);
+		mIsModified = false;
+		SetTitle();
+	}
+	mEditMenu->setItemEnabled(mMenuRedo, true);
+	mRedoBtn->setEnabled(true);
+}
+
+/*　やり直す　*/
+void MainWindow::Redo()
+{
+	if (!mMapTable->Redo()) {
+		mEditMenu->setItemEnabled(mMenuRedo, false);
+		mRedoBtn->setEnabled(false);
+	}
+	mEditMenu->setItemEnabled(mMenuUndo, true);
+	mUndoBtn->setEnabled(true);
+	mIsModified = true;
+	SetTitle();
+}
+
+void MainWindow::SetUndoEnable(bool onoff)
+{
+	mEditMenu->setItemEnabled(mMenuUndo, onoff);
+	mUndoBtn->setEnabled(onoff);
+}
+	
+void MainWindow::SetRedoEnable(bool onoff)
+{
+	mEditMenu->setItemEnabled(mMenuRedo, onoff);
+	mRedoBtn->setEnabled(onoff);
 }
 	
 void MainWindow::SetTitle()
@@ -362,4 +412,6 @@ void MainWindow::NotifyEdited()
 {
 	mIsModified = true;
 	SetTitle();
+	SetUndoEnable(true);
+	SetRedoEnable(false);
 }

@@ -19,6 +19,8 @@ public:
 
 	bool GetPixmap(QPixmap &pPixmap, int pIconIdx) const;
 	void SetTitle();
+	void SetUndoEnable(bool onoff);
+	void SetRedoEnable(bool onoff);
 	void NotifyCurIconChanged();
 	void NotifyEdited();
 
@@ -27,6 +29,8 @@ public slots:
 	void Save();
 	bool SaveAs();
 	void Exit();
+	void Undo();
+	void Redo();
 	void OnGridMenu();
 	void OnGridBtn();
 	void Setting();
@@ -46,8 +50,10 @@ private:
 
 	QPopupMenu *mFileMenu;
 	QPopupMenu *mEditMenu;
-	int mMenuGrid;
+	int mMenuUndo, mMenuRedo, mMenuGrid;
 	QToolButton *mSaveBtn;
+	QToolButton *mRedoBtn;
+	QToolButton *mUndoBtn;
 	QToolButton *mGridBtn;
 	QToolButton *mSettingBtn;
 

@@ -7,6 +7,8 @@ MG_File_Open,			// 開く(&O)
 MG_File_Save,			// 保存(&S)
 MG_File_SaveAs,			// 名前をつけて保存(&A)...
 MG_Edit,				// 編集(&E)
+MG_Undo,				// 元に戻す
+MG_Redo,				// やり直す
 MG_ShowGrid,			// グリッド表示：
 MG_Clear,				// クリア
 MG_ON,					// オン

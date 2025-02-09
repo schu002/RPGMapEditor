@@ -41,7 +41,8 @@ MapTable::~MapTable()
 {
 }
 
-void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData)
+void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
+					const Zone *pSelZone, const Point *pCurPos)
 {
 	if (pData) {
 		ChangeSize(pRowNum, pColNum);
@@ -62,6 +63,9 @@ void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData)
 				}
 			}
 		}
+		if (pSelZone) mSelZone = *pSelZone;
+		if (pCurPos && !pCurPos->empty()) setCurrentCell(pCurPos->r, pCurPos->c);
+		if ((mAttr & L_Attr_JournalNow) == 0) AddUndo(L_OPE_OPEN);
 	} else {
 		if (mRowNum == pRowNum && mColNum == pColNum) return;
 
@@ -143,6 +147,45 @@ void MapTable::SetPixmap(const Zone &pZone, const QPixmap &pPixmap)
 	}
 }
 
+
+int MapTable::Undo()
+{
+	if (mUndoStack.size() <= 1) return 0;
+
+	mAttr |= L_Attr_JournalNow;
+	Journal &redoJnl = mUndoStack.back();
+	mRedoStack.push_back(redoJnl);
+
+	mUndoStack.pop_back();
+	Journal &preJnl = mUndoStack.back();
+	const Zone *selZone = (mUndoStack.size() > 1)? &preJnl.mSelZone : NULL;
+	const Point *curPos = (mUndoStack.size() > 1)? &preJnl.mCurPos : NULL;
+	Init(preJnl.mRowNum, preJnl.mColNum, &preJnl.mData, selZone, curPos);
+	mAttr &= ~L_Attr_JournalNow;
+	return (mUndoStack.size() <= 1)? 0 : 1;
+}
+
+int MapTable::Redo()
+{
+	if (mRedoStack.empty()) return 0;
+
+	mAttr |= L_Attr_JournalNow;
+	Journal &newJnl = mRedoStack.back();
+	Init(newJnl.mRowNum, newJnl.mColNum, &newJnl.mData, &newJnl.mSelZone, &newJnl.mCurPos);
+	AddUndo(newJnl.mOperation, false);
+	mRedoStack.pop_back();
+	mAttr &= ~L_Attr_JournalNow;
+	return (mRedoStack.empty())? 0 : 1;
+}
+
+void MapTable::AddUndo(int ope, bool clearRedo)
+{
+	Point curPos(currentRow(), currentColumn());
+	Journal jnl(mRowNum, mColNum, ope, mData, mSelZone, curPos);
+	mUndoStack.push_back(jnl);
+	if (clearRedo) mRedoStack.clear();
+}
+
 void MapTable::slot_OnPressed(int row, int col, int button, const QPoint &mousePos)
 {
 	if ((button & Qt::LeftButton) == 0) return;
@@ -181,6 +224,7 @@ bool MapTable::eventFilter(QObject *obj, QEvent *e)
 		if (((QMouseEvent *)e)->button() == QMouseEvent::LeftButton) {
 			if ((mAttr & L_Attr_MousePress) && !mSelZone.empty()) {
 				SetPixmap(mSelZone, mCurIconIdx);
+				AddUndo(L_OPE_INPUT);
 				mPressPnt.init();
 				mSelZone.init();
 				mAttr &= ~L_Attr_MousePress;

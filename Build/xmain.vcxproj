@@ -268,6 +268,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\srcs\editor\icontable.cpp" />
+    <ClCompile Include="..\srcs\editor\journal.cpp" />
     <ClCompile Include="..\srcs\editor\mainwindow.cpp" />
     <ClCompile Include="..\srcs\editor\main.cpp" />
     <ClCompile Include="..\srcs\editor\maptable.cpp" />
@@ -275,6 +276,7 @@
     <ClCompile Include="..\srcs\editor\zone.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\srcs\editor\journal.h" />
     <ClInclude Include="..\srcs\editor\zone.h" />
     <CustomBuild Include="..\srcs\editor\icontable.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DLL|Win32'">$(MOCEXE) -i %(RootDir)%(Directory)icontable.h -o %(RootDir)%(Directory)icontable_moc.h
