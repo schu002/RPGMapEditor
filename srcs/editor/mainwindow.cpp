@@ -34,7 +34,9 @@ string trim(const std::string &s)
 
 MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
  :	QMainWindow(NULL, FALSE, pFlag), mFileMenu(NULL), mEditMenu(NULL), mSettingBtn(NULL),
-	mIconTable(NULL), mMapTable(NULL), mDataDir(pCurDir)
+	mMenuGrid(-1),
+	mGridBtn(NULL),
+	mIconTable(NULL), mMapTable(NULL), mDataDir(pCurDir), mIsModified(false)
 {
 	mFileName = Message::TrC(MG_DefaultDataFile);
 
@@ -61,6 +63,9 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 	menuBar()->insertItem(M_QSTR(Message::TrC(MG_File)), mFileMenu);
 
 	mEditMenu = new QPopupMenu(this, "Edit");
+	mMenuGrid = mEditMenu->insertItem(iconGrid, M_QSTR(Message::TrC(MG_ShowGrid) + Message::TrC(MG_ON)),
+		this, SLOT(OnGridMenu()), CTRL+Key_G);
+	mEditMenu->setItemChecked(mMenuGrid, true);
 	mEditMenu->insertItem(iconSetup, M_QSTR(Message::TrC(MG_Setting)), this, SLOT(Setting()));
 	menuBar()->insertItem(M_QSTR(Message::TrC(MG_Edit)), mEditMenu);
 
@@ -73,6 +78,12 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 					"", this, SLOT(Open()), toolbar, "Open");
 	mSaveBtn = new QToolButton(iconSave, M_QSTR(Message::TrC(MG_File_Save)),
 					"", this, SLOT(Save()), toolbar, "Save");
+	toolbar->addSeparator();
+
+	mGridBtn = new QToolButton(iconGrid, M_QSTR(Message::TrC(MG_ShowGrid) + Message::TrC(MG_ON)),
+					"", this, SLOT(OnGridBtn()), toolbar, "Grid");
+	mGridBtn->setToggleButton(true);
+	mGridBtn->setOn(true);
 	toolbar->addSeparator();
 
 	mSettingBtn = new QToolButton(iconSetup, M_QSTR(Message::TrC(MG_Setting)),
@@ -142,16 +153,50 @@ bool MainWindow::SaveAs()
 /*　終了　*/
 void MainWindow::Exit()
 {
+	if (mIsModified) {
+		int ret = QMessageBox::question(this, M_QSTR(Message::TrC(MG_Confirm)),
+								M_QSTR(Message::TrC(MG_ConfirmSave)),
+								QMessageBox::Yes, QMessageBox::No, QMessageBox::Cancel);
+		if (ret == QMessageBox::Cancel) return;
+		if (ret == QMessageBox::Yes) Save();
+	}
 	qApp->quit();
 }
 	
-void MainWindow::SetTitle(bool isModified)
+void MainWindow::SetTitle()
 {
 	string title = string(Message::TrC(MG_RPGMap_Editor)) + "  -  " + mFileName;
-	if (isModified) title += " *";
+	if (mIsModified) title += " *";
 	title += string("  [") + mDataDir + string("]");
 	// title = wkstr;
 	setCaption(M_QSTR(title));
+}
+
+/*　グリッド表示　*/
+void MainWindow::OnGridMenu()
+{
+	bool onoff = (mEditMenu->isItemChecked(mMenuGrid))? false : true;
+	mEditMenu->setItemChecked(mMenuGrid, onoff);
+	mGridBtn->setOn(onoff);
+	_OnGrid(onoff);
+}
+
+void MainWindow::OnGridBtn()
+{
+	bool onoff = mGridBtn->isOn();
+	mEditMenu->setItemChecked(mMenuGrid, onoff);
+	_OnGrid(onoff);
+}
+
+void MainWindow::_OnGrid(bool onoff)
+{
+	if (!mMapTable) return;
+	mMapTable->setShowGrid(onoff);
+	int id = (onoff)? MG_ON : MG_OFF;
+	string msg = Message::TrC(MG_ShowGrid) + Message::TrC(id);
+	QToolTip::add(mGridBtn, M_QSTR(msg));
+	mEditMenu->changeItem(mMenuGrid, M_QSTR(msg));
+	statusBar()->message(M_QSTR(msg));
 }
 
 /*　設定　*/
@@ -166,7 +211,8 @@ void MainWindow::Setting()
 	colNum = dlg->GetMapSizeCol();
 	mMapTable->Init(rowNum, colNum);
 	ChangeIconDir(dlg->GetIconDir().latin1());
-	SetTitle(true);
+	mIsModified = true;
+	SetTitle();
 }
 
 void MainWindow::ChangeIconDir(const char *pIconDir, bool pMsgFlg)
@@ -229,6 +275,7 @@ int MainWindow::LoadMapFile()
 	}
 	fclose(fp);
 	mMapTable->Init(rowNum, colNum, &mapData);
+	mIsModified = false;
 	SetTitle();
 	statusBar()->message(M_QSTR(Message::TrC(MG_MapFileOpened, fname.c_str())), 3000);
 	return 1;
@@ -273,7 +320,8 @@ int MainWindow::WriteFile(const string &pFileName)
 		if (r < rowNum-1) fprintf(fp, "%s\n", L_CR);
 	}
 	fclose(fp);
-	SetTitle(false);
+	mIsModified = false;
+	SetTitle();
 	return 1;
 }
 
@@ -312,5 +360,6 @@ void MainWindow::NotifyCurIconChanged()
 
 void MainWindow::NotifyEdited()
 {
-	SetTitle(true);
+	mIsModified = true;
+	SetTitle();
 }

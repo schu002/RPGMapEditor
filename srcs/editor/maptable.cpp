@@ -31,7 +31,7 @@ MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, int pRowNum, int pCol
 		setColumnReadOnly(c, true);
 	}
 
-	connect(this, SIGNAL(currentChanged(int,int)), this, SLOT(slot_OnCurrentChanged(int,int)));
+	connect(this, SIGNAL(clicked(int,int,int,const QPoint&)), this, SLOT(slot_OnClicked(int,int,int,const QPoint&)));
 	mData.resize(mRowNum * mColNum);
 	fill(mData.begin(), mData.end(), -1);
 }
@@ -120,8 +120,10 @@ void MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, QPixmap *pPixmap)
 	mData[idx] = pIconIdx;
 }
 
-void MapTable::slot_OnCurrentChanged(int row, int col)
+void MapTable::slot_OnClicked(int row, int col, int button, const QPoint &mousePos)
 {
+	if ((button & Qt::LeftButton) == 0) return;
+
 	int idx = row * mColNum + col;
 	if (mData[idx] == mCurIconIdx) return;
 

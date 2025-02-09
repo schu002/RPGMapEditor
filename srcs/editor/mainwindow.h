@@ -18,7 +18,7 @@ public:
 	IconTable * GetIconTable() { return mIconTable; }
 
 	bool GetPixmap(QPixmap &pPixmap, int pIconIdx) const;
-	void SetTitle(bool isModified = false);
+	void SetTitle();
 	void NotifyCurIconChanged();
 	void NotifyEdited();
 
@@ -27,6 +27,8 @@ public slots:
 	void Save();
 	bool SaveAs();
 	void Exit();
+	void OnGridMenu();
+	void OnGridBtn();
 	void Setting();
 
 private:
@@ -35,6 +37,7 @@ private:
 	void ReadMapData(vector<int> &pMadData, const string &pStr) const;
 	int WriteFile(const string &pFileName);
 	void closeEvent(QCloseEvent *pEvent);
+	void _OnGrid(bool onoff);
 
 private:
 	string mFileName;	// マップデータファイル
@@ -43,13 +46,16 @@ private:
 
 	QPopupMenu *mFileMenu;
 	QPopupMenu *mEditMenu;
+	int mMenuGrid;
 	QToolButton *mSaveBtn;
+	QToolButton *mGridBtn;
 	QToolButton *mSettingBtn;
 
 	QLabel *mCurPixmap;
 	QLabel *mCurPixName;
 	IconTable *mIconTable;
 	MapTable *mMapTable;
+	bool mIsModified;
 };
 
 #endif

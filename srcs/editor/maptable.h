@@ -27,7 +27,7 @@ public:
 	void NotifyIconChanged(int idx = -1, QPixmap *pixmap = NULL);
 
 public slots:
-	void slot_OnCurrentChanged(int row, int col);
+	void slot_OnClicked(int row, int col, int button, const QPoint &mousePos);
 
 private:
 	void SetPixmap(int pRow, int pCol, int pIconIdx, QPixmap *pPixmap = NULL);
