@@ -30,7 +30,7 @@ Zone::Zone(const Point &pnt)
 
 Zone::Zone(const Point &pnt1, const Point &pnt2)
 {
-	init(pnt1.r, pnt2.r, pnt1.c, pnt2.c);
+	init(pnt1.r, pnt1.c, pnt2.r, pnt2.c);
 }
 
 void Zone::init()

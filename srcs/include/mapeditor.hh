@@ -23,13 +23,14 @@ MG_OpenIconDir,			// アイコンフォルダを開く
 MG_MapSize,				// マップサイズ
 MG_MapSizeRow,			// 縦
 MG_MapSizeCol,			// 横
+MG_NotSelect,			// 未選択
 MG_IconFileNotRegist,	// アイコンファイルが登録されていません。
 MG_IconFileNotSelected,	// アイコンファイルが選択されていません。
 MG_IconFileLoaded,		// %d 個のアイコンファイルを読み込みました。
 MG_MapFileOpened,		// マップデータ "%s" をオープンしました。
 MG_ConfirmSave,			// マップデータは変更されています。\n保存しますか？
 MG_OpenFileError,		// ファイル "%s" のオープンに失敗しました。
-MG_ImageFileNotFound,	// '%s'\nアイコンフォルダに画像ファイルが見つかりません。
+MG_ImageFileNotFound,	// "%s"\nアイコンフォルダに画像ファイルが見つかりません。
 
 MG_EndCode
 };

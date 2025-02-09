@@ -347,7 +347,7 @@ void MainWindow::NotifyCurIconChanged()
 	string fname = (iconnm.empty())? "" : mIconDir + "/" + iconnm;
 	QPixmap pix(fname.c_str());
 	mCurPixmap->setPixmap(pix);
-	mCurPixName->setText(iconnm.c_str());
+	mCurPixName->setText((iconnm.empty())? M_QSTR(Message::TrC(MG_NotSelect)) : iconnm.c_str());
 	if (iconnm.empty()) {
 		mMapTable->NotifyIconChanged();
 		statusBar()->message(M_QSTR(Message::TrC(MG_IconFileNotSelected)));

@@ -13,6 +13,11 @@ class MapTable : public QTable
 {
 	Q_OBJECT
 
+private:
+	enum {
+		L_Attr_MousePress	= 0x01, // マウスの左ボタンを押し下げてる状態かどうか
+	};
+
 public:
 	MapTable(QWidget *pParent, MainWindow *pMainWin, int pRowNum = 0, int pColNum = 0);
 	~MapTable();
@@ -27,16 +32,23 @@ public:
 	void NotifyIconChanged(int idx = -1, QPixmap *pixmap = NULL);
 
 public slots:
-	void slot_OnClicked(int row, int col, int button, const QPoint &mousePos);
+	void slot_OnPressed(int row, int col, int button, const QPoint &mousePos);
+	void slot_OnCurrentChanged(int row, int col);
 
 private:
-	void SetPixmap(int pRow, int pCol, int pIconIdx, QPixmap *pPixmap = NULL);
+	bool SetPixmap(int pRow, int pCol, int pIconIdx);
+	bool SetPixmap(const Zone &pZone, int pIconIdx);
+	void SetPixmap(const Zone &pZone, const QPixmap &pPixmap);
 	void ChangeSize(int pRowNum, int pColNum);
+	bool eventFilter(QObject *obj, QEvent *e);
 
 private:
-	QPixmap *mCurPixmap;
+	int mAttr;
 	int mCurIconIdx;
 	int mRowNum, mColNum;
+	QPixmap *mCurPixmap;
+	Point mPressPnt;	// マウスを押した位置
+	Zone mSelZone;
 	vector<int>	mData;
 	MainWindow *mMainWin;
 };
