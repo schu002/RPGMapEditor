@@ -122,17 +122,18 @@ void MapTable::NotifyIconChanged(int idx, QPixmap *pixmap)
 	mCurPixmap = pixmap;
 }
 
-int MapTable::GetIconNum(int row, int col) const
+int MapTable::GetIconIdx(int row, int col) const
 {
 	int idx = row * mColNum + col;
-	return mData[idx]+1;
+	return mData[idx];
 }
 
-bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx)
+bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect)
 {
 	if (pIconIdx >= 0) {
 		QPixmap pix;
 		mMainWin->GetPixmap(pix, pIconIdx);
+		if (pIsSelect) pix.setMask( pix.createHeuristicMask() );
 		setPixmap(pRow, pCol, pix);
 	} else {
 		setPixmap(pRow, pCol, QPixmap(""));
@@ -215,6 +216,16 @@ void MapTable::UnSelect()
 	mMainWin->NotifySelectChanged();
 }
 	
+void MapTable::SelectAll()
+{
+	if ((mAttr & L_Attr_SelectMode) == 0) return;
+
+	mSelZone.init(0, 0, mRowNum-1, mColNum-1);
+	Select();
+	selectCells(0, 0, mRowNum-1, mColNum-1);
+	mMainWin->NotifySelectChanged();
+}
+
 void MapTable::Clear()
 {
 	if (mSelZone.empty()) return;
@@ -232,14 +243,38 @@ void MapTable::Clear()
 	mMainWin->NotifyEdited();
 }
 
-void MapTable::SelectAll()
+void MapTable::Move(int key)
 {
-	if ((mAttr & L_Attr_SelectMode) == 0) return;
+	if (mSelZone.empty()) return;
 
-	mSelZone.init(0, 0, mRowNum-1, mColNum-1);
-	Select();
-	selectCells(0, 0, mRowNum-1, mColNum-1);
-	mMainWin->NotifySelectChanged();
+	int moveRow = 0, moveCol = 0;
+	if		(key == Qt::Key_Left)  moveCol = -1;
+	else if (key == Qt::Key_Up)	   moveRow = -1;
+	else if (key == Qt::Key_Right) moveCol = 1;
+	else if (key == Qt::Key_Down)  moveRow = 1;
+	else return;
+
+	AddUndo(L_OPE_MOVE);
+
+	int incRow = (moveRow > 0)? -1 : 1;
+	int incCol = (moveCol > 0)? -1 : 1;
+	int sRow = (incRow > 0)? mSelZone[0].r : mSelZone[1].r;
+	int eRow = (incRow > 0)? mSelZone[1].r : mSelZone[0].r;
+	int sCol = (incCol > 0)? mSelZone[0].c : mSelZone[1].c;
+	int eCol = (incCol > 0)? mSelZone[1].c : mSelZone[0].c;
+	for (int r = sRow; r != eRow+incRow; r += incRow) {
+		for (int c = sCol; c != eCol+incCol; c += incCol) {
+			int iconIdx = GetIconIdx(r, c);
+			SetPixmap(r+moveRow, c+moveCol, iconIdx, true);
+			SetPixmap(r, c, -1);
+		}
+	}
+	mSelZone.move(moveRow, moveCol);
+	clearSelection();
+	selectCells(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
+
+	mMainWin->NotifyEdited();
+	Sleep(100);
 }
 
 int MapTable::Undo()
@@ -356,6 +391,10 @@ bool MapTable::eventFilter(QObject *obj, QEvent *e)
 			Clear();
 		} else if (key == Qt::Key_Escape) {
 			UnSelect();
+		} else if (key == Qt::Key_Left || key == Qt::Key_Up || key == Qt::Key_Right || key == Qt::Key_Down) {
+			Move(key);
+		} else if (key == Qt::Key_A && state == Qt::ControlButton) {
+			SelectAll();
 		}
 	}
 	return QTable::eventFilter(obj, e);

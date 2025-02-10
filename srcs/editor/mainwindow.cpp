@@ -435,7 +435,7 @@ int MainWindow::WriteFile(const string &pFileName)
 	for (int r = 0; r < rowNum; r++) {
 		if (r > 0) fprintf(fp, "\t");
 		for (int c = 0; c < colNum; c++) {
-			fprintf(fp, "%3d,", mMapTable->GetIconNum(r, c));
+			fprintf(fp, "%3d,", mMapTable->GetIconIdx(r, c)+1);
 		}
 		if (r < rowNum-1) fprintf(fp, "%s\n", L_CR);
 	}

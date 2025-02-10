@@ -28,7 +28,7 @@ public:
 			bool pIsSelect = true);
 
 	// row colの位置のアイコン番号を取得する
-	int GetIconNum(int row, int col) const;
+	int GetIconIdx(int row, int col) const;
 	int GetRowNum() const { return mRowNum; }
 	int GetColNum() const { return mColNum; }
 
@@ -45,7 +45,7 @@ public slots:
 	void slot_OnCurrentChanged(int row, int col);
 
 private:
-	bool SetPixmap(int pRow, int pCol, int pIconIdx);
+	bool SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect = false);
 	bool SetPixmap(const Zone &pZone, int pIconIdx);
 	void SetPixmap(const Zone &pZone, const QPixmap &pPixmap);
 	void ResetSelZonePixmap(const Zone *pZone);
@@ -54,6 +54,7 @@ private:
 	void Select(int row, int col);
 	bool Select(const Zone *pSelZone = NULL);
 	void UnSelect();
+	void Move(int key);
 	void AddUndo(int ope, const Point *curPos = NULL);
 	bool eventFilter(QObject *obj, QEvent *e);
 
