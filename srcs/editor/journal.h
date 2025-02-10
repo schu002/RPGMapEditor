@@ -8,8 +8,8 @@ using namespace std;
 
 // 操作
 enum {
-	L_OPE_OPEN = 1,	// マップデータオープン
-	L_OPE_INPUT,	// アイコン入力
+	L_OPE_INPUT = 1,	// アイコン入力
+	L_OPE_CLEAR,		// クリア
 };
 
 // ジャーナル
@@ -17,6 +17,9 @@ class Journal {
 public:
 	Journal(int pRowNum, int pColNum, int pOpe, const vector<int> &pData,
 			const Zone &pSelZone, const Point &pCurPos);
+
+	bool IsSelect() const; // 選択状態のときに行う操作かどうか
+	void Dump() const;
 
 public:
 	int mRowNum, mColNum;	// マップサイズ

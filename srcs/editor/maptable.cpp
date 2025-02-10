@@ -42,30 +42,41 @@ MapTable::~MapTable()
 }
 
 void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
-					const Zone *pSelZone, const Point *pCurPos)
+					const Zone *pSelZone, const Point *pCurPos, bool pIsSelect)
 {
 	if (pData) {
 		ChangeSize(pRowNum, pColNum);
 		if (pData->size() < pRowNum*pColNum) {
 			pData->resize(pRowNum*pColNum, -1);
 		}
+		bool selFlg1 = false, selFlg2 = false;
 		QPixmap pix;
 		for (int r = 0; r < mRowNum; r++) {
 			for (int c = 0; c < mColNum; c++) {
+				if (pIsSelect) {
+					selFlg1 = (pSelZone && pSelZone->contains(r, c))? true : false;
+					selFlg2 = mSelZone.contains(r, c);
+				}
 				int idx = r * mColNum + c;
 				// if (mData[idx] == (*pData)[idx]) continue;
 				mData[idx] = (*pData)[idx];
 				int iconIdx = mData[idx];
 				if (iconIdx >= 0 && mMainWin->GetPixmap(pix, iconIdx)) {
+					if (selFlg1 || (!pSelZone && selFlg2)) {
+						pix.setMask( pix.createHeuristicMask() );
+					}
 					setPixmap(r, c, pix);
 				} else {
 					clearCell(r, c);
 				}
 			}
 		}
-		if (pSelZone) mSelZone = *pSelZone;
+		if (pSelZone && mSelZone != *pSelZone) {
+			mSelZone = *pSelZone;
+			clearSelection();
+			if (!mSelZone.empty()) selectCells(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
+		}
 		if (pCurPos && !pCurPos->empty()) setCurrentCell(pCurPos->r, pCurPos->c);
-		if ((mAttr & L_Attr_JournalNow) == 0) AddUndo(L_OPE_OPEN);
 	} else {
 		if (mRowNum == pRowNum && mColNum == pColNum) return;
 
@@ -201,44 +212,75 @@ void MapTable::UnSelect()
 	}
 	mPressPnt.init();
 	mSelZone.init();
+	mMainWin->NotifySelectChanged();
 }
 	
+void MapTable::Clear()
+{
+	if (mSelZone.empty()) return;
+
+	AddUndo(L_OPE_CLEAR);
+
+	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
+		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
+			int idx = r * mColNum + c;
+			SetPixmap(r, c, -1);
+		}
+	}
+	clearSelection();
+	mSelZone.init();
+	mMainWin->NotifyEdited();
+}
+
+void MapTable::SelectAll()
+{
+	if ((mAttr & L_Attr_SelectMode) == 0) return;
+
+	mSelZone.init(0, 0, mRowNum-1, mColNum-1);
+	Select();
+	selectCells(0, 0, mRowNum-1, mColNum-1);
+	mMainWin->NotifySelectChanged();
+}
+
 int MapTable::Undo()
 {
-	if (mUndoStack.size() <= 1) return 0;
+	if (mUndoStack.empty()) return 0;
 
-	mAttr |= L_Attr_JournalNow;
-	Journal &redoJnl = mUndoStack.back();
-	mRedoStack.push_back(redoJnl);
-
+	Point curPos(currentRow(), currentColumn());
+	Journal preJnl = mUndoStack.back();
 	mUndoStack.pop_back();
-	Journal &preJnl = mUndoStack.back();
-	const Zone *selZone = (mUndoStack.size() > 1)? &preJnl.mSelZone : NULL;
-	const Point *curPos = (mUndoStack.size() > 1)? &preJnl.mCurPos : NULL;
-	Init(preJnl.mRowNum, preJnl.mColNum, &preJnl.mData, selZone, curPos);
-	mAttr &= ~L_Attr_JournalNow;
-	return (mUndoStack.size() <= 1)? 0 : 1;
+	if (!mUndoStack.empty() && !preJnl.IsSelect()) {
+		preJnl.mCurPos = mUndoStack.back().mCurPos;
+		preJnl.mSelZone = mUndoStack.back().mSelZone;
+	}
+	Journal redoJnl(mRowNum, mColNum, preJnl.mOperation, mData, mSelZone, curPos);
+//	printf("undo %zd: (%d %d)\n", mUndoStack.size(), preJnl.mCurPos.r, preJnl.mCurPos.c);
+	mRedoStack.push_back(redoJnl);
+//	printf("add redo %zd: ", mRedoStack.size()); redoJnl.Dump();
+	Init(preJnl.mRowNum, preJnl.mColNum, &preJnl.mData, &preJnl.mSelZone, &preJnl.mCurPos, preJnl.IsSelect());
+	return (mUndoStack.empty())? 0 : 1;
 }
 
 int MapTable::Redo()
 {
 	if (mRedoStack.empty()) return 0;
 
-	mAttr |= L_Attr_JournalNow;
 	Journal &newJnl = mRedoStack.back();
-	Init(newJnl.mRowNum, newJnl.mColNum, &newJnl.mData, &newJnl.mSelZone, &newJnl.mCurPos);
-	AddUndo(newJnl.mOperation, false);
+	AddUndo(newJnl.mOperation, &newJnl.mCurPos);
+	Init(newJnl.mRowNum, newJnl.mColNum, &newJnl.mData, &newJnl.mSelZone, &newJnl.mCurPos, newJnl.IsSelect());
 	mRedoStack.pop_back();
-	mAttr &= ~L_Attr_JournalNow;
+//	printf("redo %zd: (%d %d)\n", mRedoStack.size(), newJnl.mCurPos.r, newJnl.mCurPos.c);
 	return (mRedoStack.empty())? 0 : 1;
 }
 
-void MapTable::AddUndo(int ope, bool clearRedo)
+void MapTable::AddUndo(int ope, const Point *pCurPos)
 {
 	Point curPos(currentRow(), currentColumn());
+	if (pCurPos) curPos = *pCurPos;
 	Journal jnl(mRowNum, mColNum, ope, mData, mSelZone, curPos);
 	mUndoStack.push_back(jnl);
-	if (clearRedo) mRedoStack.clear();
+//	printf("add undo %zd: ", mUndoStack.size()); jnl.Dump();
+	if (!pCurPos) mRedoStack.clear();
 }
 
 void MapTable::slot_OnPressed(int row, int col, int button, const QPoint &mousePos)
@@ -276,6 +318,22 @@ void MapTable::slot_OnCurrentChanged(int row, int col)
 	}
 }
 
+// “ü—Í‚ðŠm’è‚·‚é
+void MapTable::FinalizeInput()
+{
+	if (mSelZone.empty()) return;
+
+	AddUndo(L_OPE_INPUT);
+
+	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
+		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
+			int idx = r * mColNum + c;
+			mData[idx] = mCurIconIdx;
+		}
+	}
+	mSelZone.init();
+}
+
 bool MapTable::eventFilter(QObject *obj, QEvent *e)
 {
 	if (e->type() == QEvent::MouseButtonRelease) {
@@ -283,13 +341,21 @@ bool MapTable::eventFilter(QObject *obj, QEvent *e)
 			if ((mAttr & L_Attr_MousePress) && !mSelZone.empty()) {
 				mAttr &= ~L_Attr_MousePress;
 				mPressPnt.init();
-				if ((mAttr & L_Attr_SelectMode) == 0) {
-					// SetPixmap(mSelZone, mCurIconIdx);
-					AddUndo(L_OPE_INPUT);
-					mSelZone.init();
+				if (mAttr & L_Attr_SelectMode) {
+					mMainWin->NotifySelectChanged();
+				} else {
+					FinalizeInput();
 					mMainWin->NotifyEdited();
 				}
 			}
+		}
+	} else if (e->type() == QEvent::KeyPress) {
+		const int key = ((QKeyEvent *)e)->key();
+		const int state = ((QKeyEvent *)e)->state();
+		if (key == Qt::Key_Delete) {
+			Clear();
+		} else if (key == Qt::Key_Escape) {
+			UnSelect();
 		}
 	}
 	return QTable::eventFilter(obj, e);

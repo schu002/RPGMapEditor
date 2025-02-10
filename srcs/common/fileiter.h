@@ -25,7 +25,7 @@ public:
 
 private:
 	int NextFile();
-	int Close();
+	void Close();
 
 private:
 	string mDir;

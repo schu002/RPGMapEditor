@@ -34,9 +34,9 @@ string trim(const std::string &s)
 
 MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
  :	QMainWindow(NULL, FALSE, pFlag), mFileMenu(NULL), mEditMenu(NULL),
-	mMenuUndo(-1), mMenuRedo(-1), mMenuGrid(-1), mMenuSelect(-1),
-	mSaveBtn(NULL), mSelectBtn(NULL), mGridBtn(NULL),
-	mUndoBtn(NULL), mRedoBtn(NULL), mSettingBtn(NULL),
+	mMenuUndo(-1), mMenuRedo(-1), mMenuGrid(-1), mMenuSelect(-1), mMenuSelectAll(-1), mMenuClear(-1),
+	mSaveBtn(NULL), mGridBtn(NULL), mSelectBtn(NULL), mSelectAllBtn(NULL),
+	mUndoBtn(NULL), mRedoBtn(NULL), mClearBtn(NULL), mSettingBtn(NULL),
 	mIconTable(NULL), mMapTable(NULL), mDataDir(pCurDir), mIsModified(false)
 {
 	mFileName = Message::TrC(MG_DefaultDataFile);
@@ -50,6 +50,7 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 	QPixmap iconUndo("./lib/undo.png");
 	QPixmap iconRedo("./lib/redo.png");
 	QPixmap iconSelect("./lib/select.png");
+	QPixmap iconSelectAll("./lib/selectall.png");
 	QPixmap iconGrid("./lib/grid.png");
 	QPixmap iconSetup("./lib/setup.png");
 
@@ -72,6 +73,11 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 	mEditMenu->setItemChecked(mMenuGrid, true);
 	mMenuSelect = mEditMenu->insertItem(iconSelect, M_QSTR(Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(MG_OFF)),
 		this, SLOT(OnSelectMenu()), Key_S);
+	mEditMenu->insertSeparator();
+	mMenuSelectAll = mEditMenu->insertItem(iconSelectAll, M_QSTR(Message::TrC(MG_SelectAll)), this, SLOT(OnSelectAll()), CTRL+Key_A);
+	mEditMenu->setItemEnabled(mMenuSelectAll, false);
+	mMenuClear = mEditMenu->insertItem(iconClear, M_QSTR(Message::TrC(MG_Clear)), this, SLOT(Clear()));
+	mEditMenu->setItemEnabled(mMenuClear, false);
 	mEditMenu->insertSeparator();
 	mEditMenu->insertItem(iconSetup, M_QSTR(Message::TrC(MG_Setting)), this, SLOT(Setting()));
 	menuBar()->insertItem(M_QSTR(Message::TrC(MG_Edit)), mEditMenu);
@@ -101,6 +107,15 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 					"", this, SLOT(OnSelectBtn()), toolbar, "Select");
 	mSelectBtn->setToggleButton(true);
 	mSelectBtn->setOn(false);
+
+	toolbar->addSeparator();
+	mSelectAllBtn = new QToolButton(iconSelectAll, M_QSTR(Message::TrC(MG_SelectAll)), "",
+						this, SLOT(OnSelectAll()), toolbar, "SelectAll");
+	mSelectAllBtn->setEnabled(false);
+
+	mClearBtn = new QToolButton(iconClear, M_QSTR(Message::TrC(MG_Clear)),
+					"", this, SLOT(Clear()), toolbar, "Clear");
+	mClearBtn->setEnabled(false);
 	toolbar->addSeparator();
 
 	mSettingBtn = new QToolButton(iconSetup, M_QSTR(Message::TrC(MG_Setting)),
@@ -193,6 +208,7 @@ void MainWindow::Undo()
 	}
 	mEditMenu->setItemEnabled(mMenuRedo, true);
 	mRedoBtn->setEnabled(true);
+	SetEditBtnEnable();
 }
 
 /*　やり直す　*/
@@ -280,12 +296,27 @@ void MainWindow::_OnSelect(bool onoff)
 	mIconTable->setEnabled(!onoff);
 	mMapTable->SetSelectMode(onoff);
 
+	mEditMenu->setItemEnabled(mMenuSelectAll, onoff);
+	mSelectAllBtn->setEnabled(onoff);
+
 	int id = (onoff)? MG_ON : MG_OFF;
 	string msg = Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(id);
 	QToolTip::add(mSelectBtn, M_QSTR(msg));
 	mEditMenu->changeItem(mMenuSelect, M_QSTR(msg));
 	id = (onoff)? MG_SelectMode : MG_InputMode;
 	statusBar()->message(M_QSTR(Message::TrC(id)));
+}
+
+/*　全て選択　*/
+void MainWindow::OnSelectAll()
+{
+	mMapTable->SelectAll();
+}
+
+/*　クリア　*/
+void MainWindow::Clear()
+{
+	mMapTable->Clear();
 }
 
 /*　設定　*/
@@ -447,10 +478,25 @@ void MainWindow::NotifyCurIconChanged()
 	}
 }
 
+void MainWindow::NotifySelectChanged()
+{
+	bool isSelect = mMapTable->IsSelect();
+	mEditMenu->setItemEnabled(mMenuClear, isSelect);
+	mClearBtn->setEnabled(isSelect);
+}
+
 void MainWindow::NotifyEdited()
 {
 	mIsModified = true;
 	SetTitle();
 	SetUndoEnable(true);
 	SetRedoEnable(false);
+	SetEditBtnEnable();
+}
+
+void MainWindow::SetEditBtnEnable()
+{
+	bool onoff = (mSelectBtn->isOn() && mMapTable->IsSelect())? true : false;
+	mEditMenu->setItemEnabled(mMenuClear, onoff);
+	mClearBtn->setEnabled(onoff);
 }

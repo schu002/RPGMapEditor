@@ -72,13 +72,12 @@ int FileIter::NextFile()
 	return 1;
 }
 
-int FileIter::Close()
+void FileIter::Close()
 {
 	if (mhFIND!= INVALID_HANDLE_VALUE) {
 		FindClose(mhFIND);
 		mhFIND= INVALID_HANDLE_VALUE;
 	}
-	return R_NORMAL;
 }
 
 const char * FileIter::GetFileName() const

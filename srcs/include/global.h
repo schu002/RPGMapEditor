@@ -1,9 +1,6 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H 1
 
-#define	L_TRUE		1
-#define	L_FALSE		0
-
 #define	L_OS_WINDOWS	1
 
 #if _MSC_VER >= 1300
@@ -12,39 +9,12 @@
 #define L_COMPILER_VC6		1
 #endif
 
-#define L_ON			1
-#define L_OFF			0
-
-#define	R_NORMAL		1
-#define R_ABNORMAL		0
-
-#define	L_INT32MIN		0x80000000
-#define	L_INT32MAX		0x7fffffff
-
-/*
-	g++では関数アドレスを渡すには関数名に&を付けなければならない。
-	Sunprc CCではそれがエラーになるので、以下のマクロで吸収する。
-*/
-#if	__GNUC__
-#define	M_FUNCADDR(name)	&name
-#else
-#define	M_FUNCADDR(name)	name
-#endif
-
 /*
     マクロ定義
 */
-#define M_BZERO(d,n)    memset((char *)(d),0,n)
-#define M_BCMP(s,d,n)   memcmp((char *)(d),(char *)(s),n)
-#define	M_BCOPY(s,d,n)	memmove((char *)(d),(char *)(s),n)
-#define	M_BFILL(v,d,n)	memset((char *)(d),v,n)
 #define	M_MAX(a,b)		((a)<(b)?(b):(a))
 #define	M_MIN(a,b)		((a)>(b)?(b):(a))
 #define	M_ABS(a)		((a)<0?-(a):a)
-#define	M_FTOI(x)		(int)(((x)<0.0)?((x)-0.5):((x)+0.5))
-#define	M_FTOI64(x)		(T_INT64)(((x)<0.0)?((x)-0.5):((x)+0.5))
-#define	M_FTOI_UP(x)	(((int)(x) == (x))? (int)(x) : ((int)(x)+(((x)>=0.0)? 1 : -1)))
-#define	M_CENTER(a,b)	((a)+M_FTOI(((double)(b)-(double)(a))/2.0));
 
 ////////////////////////////////////////////////
 

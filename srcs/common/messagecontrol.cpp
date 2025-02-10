@@ -51,7 +51,7 @@ int MessageControl::Load(const string &pMsgFile)
 int MessageControl::_Load(const string &pMsgFile)
 {
 	ifstream ifs(pMsgFile.c_str());
-	if (ifs.fail()) return R_ABNORMAL;
+	if (ifs.fail()) return 0;
 
 	int code = 0, enumFlg = 0;
 	string line;
@@ -69,7 +69,7 @@ int MessageControl::_Load(const string &pMsgFile)
 		}
 	}
 	ifs.close();
-	return R_NORMAL;
+	return 1;
 }
 
 void MessageControl::AddMessage(const string &pLine, int &pCode)

@@ -13,6 +13,7 @@ MG_ShowGrid,			// グリッド表示：
 MG_SelectMode,			// 選択モード
 MG_InputMode,			// 入力モード
 MG_COLON,				// ：
+MG_SelectAll,			// 全て選択
 MG_Clear,				// クリア
 MG_ON,					// オン
 MG_OFF,					// オフ

@@ -22,6 +22,7 @@ public:
 	void SetUndoEnable(bool onoff);
 	void SetRedoEnable(bool onoff);
 	void NotifyCurIconChanged();
+	void NotifySelectChanged();
 	void NotifyEdited();
 
 public slots:
@@ -29,12 +30,15 @@ public slots:
 	void Save();
 	bool SaveAs();
 	void Exit();
+
 	void Undo();
 	void Redo();
-	void OnSelectMenu();
-	void OnSelectBtn();
 	void OnGridMenu();
 	void OnGridBtn();
+	void OnSelectMenu();
+	void OnSelectBtn();
+	void OnSelectAll();
+	void Clear();
 	void Setting();
 
 private:
@@ -45,6 +49,7 @@ private:
 	void closeEvent(QCloseEvent *pEvent);
 	void _OnGrid(bool onoff);
 	void _OnSelect(bool onoff);
+	void SetEditBtnEnable();
 
 private:
 	string mFileName;	// マップデータファイル
@@ -53,12 +58,14 @@ private:
 
 	QPopupMenu *mFileMenu;
 	QPopupMenu *mEditMenu;
-	int mMenuUndo, mMenuRedo, mMenuGrid, mMenuSelect;
+	int mMenuUndo, mMenuRedo, mMenuGrid, mMenuSelect, mMenuSelectAll, mMenuClear;
 	QToolButton *mSaveBtn;
 	QToolButton *mRedoBtn;
 	QToolButton *mUndoBtn;
-	QToolButton *mSelectBtn;
 	QToolButton *mGridBtn;
+	QToolButton *mSelectBtn;
+	QToolButton *mSelectAllBtn;
+	QToolButton *mClearBtn;
 	QToolButton *mSettingBtn;
 
 	QLabel *mCurPixmap;
