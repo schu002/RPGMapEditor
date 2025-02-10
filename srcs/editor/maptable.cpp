@@ -95,6 +95,16 @@ void MapTable::ChangeSize(int pRowNum, int pColNum)
 	mData.resize(pRowNum * pColNum);
 }
 
+void MapTable::SetSelectMode(bool onoff)
+{
+	if (onoff) {
+		mAttr |= L_Attr_SelectMode;
+	} else {
+		UnSelect();
+		mAttr &= ~L_Attr_SelectMode;
+	}
+}
+
 void MapTable::NotifyIconChanged(int idx, QPixmap *pixmap)
 {
 	mCurIconIdx = idx;
@@ -147,7 +157,52 @@ void MapTable::SetPixmap(const Zone &pZone, const QPixmap &pPixmap)
 	}
 }
 
+void MapTable::ResetSelZonePixmap(const Zone *pZone)
+{
+	for (int r = mSelZone[0].r; r <= mSelZone[1].r && r >= 0; r++) {
+		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
+			if (pZone && pZone->contains(r, c)) continue;
+			int idx = r * mColNum + c;
+			SetPixmap(r, c, mData[idx]);
+		}
+	}
+}
 
+bool MapTable::Select(const Zone *pSelZone)
+{
+	const Zone &selZone = (pSelZone)? *pSelZone : mSelZone;
+	if (selZone.empty()) return false;
+	if (pSelZone && *pSelZone == mSelZone) return false;
+
+	for (int r = selZone[0].r; r <= selZone[1].r; r++) {
+		for (int c = selZone[0].c; c <= selZone[1].c; c++) {
+			// if (mSelZone.contains(r, c)) continue;
+			int idx = r * mColNum + c;
+			QPixmap pix;
+			mMainWin->GetPixmap(pix, mData[idx]);
+			pix.setMask( pix.createHeuristicMask() );
+			setPixmap(r, c, pix);
+		}
+	}
+	return true;
+}
+
+void MapTable::UnSelect()
+{
+	if (mSelZone.empty()) return;
+
+	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
+		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
+			int idx = r * mColNum + c;
+			QPixmap pix;
+			mMainWin->GetPixmap(pix, mData[idx]);
+			setPixmap(r, c, pix);
+		}
+	}
+	mPressPnt.init();
+	mSelZone.init();
+}
+	
 int MapTable::Undo()
 {
 	if (mUndoStack.size() <= 1) return 0;
@@ -189,33 +244,36 @@ void MapTable::AddUndo(int ope, bool clearRedo)
 void MapTable::slot_OnPressed(int row, int col, int button, const QPoint &mousePos)
 {
 	if ((button & Qt::LeftButton) == 0) return;
-//	if (!mCurPixmap) return;
 
-	mPressPnt.init(row, col);
-	mSelZone.init(mPressPnt);
 	mAttr |= L_Attr_MousePress;
+	mPressPnt.init(row, col);
+	Zone newZone(mPressPnt);
+	ResetSelZonePixmap(&newZone);
 
-	setPixmap(row, col, (mCurPixmap)? *mCurPixmap : QPixmap(""));
+	mSelZone = newZone;
+
+	if (mAttr & L_Attr_SelectMode) {
+		Select();
+	} else {
+		setPixmap(row, col, (mCurPixmap)? *mCurPixmap : QPixmap(""));
+	}
 }
 
 void MapTable::slot_OnCurrentChanged(int row, int col)
 {
 	if ((mAttr & L_Attr_MousePress) == 0) return;
 	if (mPressPnt.empty()) return;
-//	if (!mCurPixmap) return;
 
 	// 選択されなくなったセルは元のアイコンに戻す
 	Zone newZone(mPressPnt, Point(row, col));
-	for (int r = mSelZone[0].r; r <= mSelZone[1].r && r >= 0; r++) {
-		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
-			if (newZone.contains(r, c)) continue;
-			int idx = r * mColNum + c;
-			SetPixmap(r, c, mData[idx]);
-		}
-	}
+	ResetSelZonePixmap(&newZone);
 
 	mSelZone = newZone;
-	SetPixmap(mSelZone, (mCurPixmap)? *mCurPixmap : QPixmap(""));
+	if (mAttr & L_Attr_SelectMode) {
+		Select();
+	} else {
+		SetPixmap(mSelZone, (mCurPixmap)? *mCurPixmap : QPixmap(""));
+	}
 }
 
 bool MapTable::eventFilter(QObject *obj, QEvent *e)
@@ -223,12 +281,14 @@ bool MapTable::eventFilter(QObject *obj, QEvent *e)
 	if (e->type() == QEvent::MouseButtonRelease) {
 		if (((QMouseEvent *)e)->button() == QMouseEvent::LeftButton) {
 			if ((mAttr & L_Attr_MousePress) && !mSelZone.empty()) {
-				SetPixmap(mSelZone, mCurIconIdx);
-				AddUndo(L_OPE_INPUT);
-				mPressPnt.init();
-				mSelZone.init();
 				mAttr &= ~L_Attr_MousePress;
-				mMainWin->NotifyEdited();
+				mPressPnt.init();
+				if ((mAttr & L_Attr_SelectMode) == 0) {
+					// SetPixmap(mSelZone, mCurIconIdx);
+					AddUndo(L_OPE_INPUT);
+					mSelZone.init();
+					mMainWin->NotifyEdited();
+				}
 			}
 		}
 	}

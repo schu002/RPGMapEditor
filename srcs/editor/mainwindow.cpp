@@ -34,8 +34,8 @@ string trim(const std::string &s)
 
 MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
  :	QMainWindow(NULL, FALSE, pFlag), mFileMenu(NULL), mEditMenu(NULL),
-	mMenuUndo(-1), mMenuRedo(-1), mMenuGrid(-1),
-	mGridBtn(NULL),
+	mMenuUndo(-1), mMenuRedo(-1), mMenuGrid(-1), mMenuSelect(-1),
+	mSaveBtn(NULL), mSelectBtn(NULL), mGridBtn(NULL),
 	mUndoBtn(NULL), mRedoBtn(NULL), mSettingBtn(NULL),
 	mIconTable(NULL), mMapTable(NULL), mDataDir(pCurDir), mIsModified(false)
 {
@@ -70,6 +70,9 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 	mMenuGrid = mEditMenu->insertItem(iconGrid, M_QSTR(Message::TrC(MG_ShowGrid) + Message::TrC(MG_ON)),
 		this, SLOT(OnGridMenu()), CTRL+Key_G);
 	mEditMenu->setItemChecked(mMenuGrid, true);
+	mMenuSelect = mEditMenu->insertItem(iconSelect, M_QSTR(Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(MG_OFF)),
+		this, SLOT(OnSelectMenu()), Key_S);
+	mEditMenu->insertSeparator();
 	mEditMenu->insertItem(iconSetup, M_QSTR(Message::TrC(MG_Setting)), this, SLOT(Setting()));
 	menuBar()->insertItem(M_QSTR(Message::TrC(MG_Edit)), mEditMenu);
 
@@ -94,6 +97,10 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 					"", this, SLOT(OnGridBtn()), toolbar, "Grid");
 	mGridBtn->setToggleButton(true);
 	mGridBtn->setOn(true);
+	mSelectBtn = new QToolButton(iconSelect, M_QSTR(Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(MG_OFF)),
+					"", this, SLOT(OnSelectBtn()), toolbar, "Select");
+	mSelectBtn->setToggleButton(true);
+	mSelectBtn->setOn(false);
 	toolbar->addSeparator();
 
 	mSettingBtn = new QToolButton(iconSetup, M_QSTR(Message::TrC(MG_Setting)),
@@ -247,6 +254,38 @@ void MainWindow::_OnGrid(bool onoff)
 	QToolTip::add(mGridBtn, M_QSTR(msg));
 	mEditMenu->changeItem(mMenuGrid, M_QSTR(msg));
 	statusBar()->message(M_QSTR(msg));
+}
+
+/*　選択モード　*/
+void MainWindow::OnSelectMenu()
+{
+	bool onoff = (mEditMenu->isItemChecked(mMenuSelect))? false : true;
+	mEditMenu->setItemChecked(mMenuSelect, onoff);
+	mSelectBtn->setOn(onoff);
+	_OnSelect(onoff);
+}
+
+void MainWindow::OnSelectBtn()
+{
+	bool onoff = mSelectBtn->isOn();
+	mEditMenu->setItemChecked(mMenuSelect, onoff);
+	_OnSelect(onoff);
+}
+
+void MainWindow::_OnSelect(bool onoff)
+{
+	if (!mMapTable) return;
+	mCurPixmap->setEnabled(!onoff);
+	mCurPixName->setEnabled(!onoff);
+	mIconTable->setEnabled(!onoff);
+	mMapTable->SetSelectMode(onoff);
+
+	int id = (onoff)? MG_ON : MG_OFF;
+	string msg = Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(id);
+	QToolTip::add(mSelectBtn, M_QSTR(msg));
+	mEditMenu->changeItem(mMenuSelect, M_QSTR(msg));
+	id = (onoff)? MG_SelectMode : MG_InputMode;
+	statusBar()->message(M_QSTR(Message::TrC(id)));
 }
 
 /*　設定　*/

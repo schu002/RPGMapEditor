@@ -17,6 +17,7 @@ private:
 	enum {
 		L_Attr_MousePress	= 0x01, // マウスの左ボタンを押し下げてる状態かどうか
 		L_Attr_JournalNow	= 0x02, // UndoまたはRedoの処理中
+		L_Attr_SelectMode	= 0x04, // 選択モードかどうか
 	};
 
 public:
@@ -31,8 +32,10 @@ public:
 	int GetRowNum() const { return mRowNum; }
 	int GetColNum() const { return mColNum; }
 
+	void SetSelectMode(bool onoff);
 	int Undo();
 	int Redo();
+	bool IsSelect() const { return ((mAttr & L_Attr_SelectMode) && !mSelZone.empty())? true : false; }
 	void NotifyIconChanged(int idx = -1, QPixmap *pixmap = NULL);
 
 public slots:
@@ -43,7 +46,12 @@ private:
 	bool SetPixmap(int pRow, int pCol, int pIconIdx);
 	bool SetPixmap(const Zone &pZone, int pIconIdx);
 	void SetPixmap(const Zone &pZone, const QPixmap &pPixmap);
+	void ResetSelZonePixmap(const Zone *pZone);
 	void ChangeSize(int pRowNum, int pColNum);
+	void Select(int row, int col);
+	bool Select(const Zone *pSelZone = NULL);
+	void SelectAll();
+	void UnSelect();
 	void AddUndo(int ope, bool clearRedo = true);
 	bool eventFilter(QObject *obj, QEvent *e);
 

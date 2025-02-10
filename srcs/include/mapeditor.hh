@@ -10,6 +10,9 @@ MG_Edit,				// 編集(&E)
 MG_Undo,				// 元に戻す
 MG_Redo,				// やり直す
 MG_ShowGrid,			// グリッド表示：
+MG_SelectMode,			// 選択モード
+MG_InputMode,			// 入力モード
+MG_COLON,				// ：
 MG_Clear,				// クリア
 MG_ON,					// オン
 MG_OFF,					// オフ

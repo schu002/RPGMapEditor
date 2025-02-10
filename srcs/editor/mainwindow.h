@@ -31,6 +31,8 @@ public slots:
 	void Exit();
 	void Undo();
 	void Redo();
+	void OnSelectMenu();
+	void OnSelectBtn();
 	void OnGridMenu();
 	void OnGridBtn();
 	void Setting();
@@ -42,6 +44,7 @@ private:
 	int WriteFile(const string &pFileName);
 	void closeEvent(QCloseEvent *pEvent);
 	void _OnGrid(bool onoff);
+	void _OnSelect(bool onoff);
 
 private:
 	string mFileName;	// マップデータファイル
@@ -50,10 +53,11 @@ private:
 
 	QPopupMenu *mFileMenu;
 	QPopupMenu *mEditMenu;
-	int mMenuUndo, mMenuRedo, mMenuGrid;
+	int mMenuUndo, mMenuRedo, mMenuGrid, mMenuSelect;
 	QToolButton *mSaveBtn;
 	QToolButton *mRedoBtn;
 	QToolButton *mUndoBtn;
+	QToolButton *mSelectBtn;
 	QToolButton *mGridBtn;
 	QToolButton *mSettingBtn;
 
