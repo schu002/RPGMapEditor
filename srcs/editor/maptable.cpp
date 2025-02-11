@@ -56,12 +56,12 @@ void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
 		QPixmap pix;
 		for (int r = 0; r < mRowNum; r++) {
 			for (int c = 0; c < mColNum; c++) {
-				if (pIsSelect) {
+				if (pIsSelect && (mAttr & L_Attr_SelectMode)) {
 					selFlg1 = (pSelZone && pSelZone->contains(r, c))? true : false;
 					selFlg2 = mSelZone.contains(r, c);
 				}
 				int idx = r * mColNum + c;
-				// if (mData[idx] == (*pData)[idx]) continue;
+				if (mData[idx] == (*pData)[idx] && !selFlg1 && !selFlg2) continue;
 				mData[idx] = (*pData)[idx];
 				int iconIdx = mData[idx];
 				if (iconIdx >= 0 && mMainWin->GetPixmap(pix, iconIdx)) {
@@ -74,7 +74,7 @@ void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
 				}
 			}
 		}
-		if (pSelZone && mSelZone != *pSelZone) {
+		if (pSelZone && mSelZone != *pSelZone && (mAttr & L_Attr_SelectMode)) {
 			mSelZone = *pSelZone;
 			clearSelection();
 			if (!mSelZone.empty()) selectCells(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
@@ -153,12 +153,18 @@ void MapTable::NotifyIconChanged(int idx, QPixmap *pixmap)
 
 int MapTable::GetIconIdx(int row, int col) const
 {
+	if (row < 0 || col < 0 || row >= mRowNum || col >= mColNum)
+		return -1;
+
 	int idx = row * mColNum + col;
 	return mData[idx];
 }
 
 bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect, bool pIsUpdate)
 {
+	if (pRow < 0 || pCol < 0 || pRow >= mRowNum || pCol >= mColNum)
+		return false;
+
 	if (pIconIdx >= 0) {
 		QPixmap pix;
 		mMainWin->GetPixmap(pix, pIconIdx);
@@ -434,8 +440,10 @@ void MapTable::FinalizeMove()
 
 	int ofsRow = mMovePnt.r - mSelZone[0].r;
 	int ofsCol = mMovePnt.c - mSelZone[0].c;
-	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
-		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
+	int sRow = M_MAX(mSelZone[0].r, 0), eRow = M_MIN(mSelZone[1].r, mRowNum-1);
+	int sCol = M_MAX(mSelZone[0].c, 0), eCol = M_MIN(mSelZone[1].c, mColNum-1);
+	for (int r = sRow; r <= eRow; r++) {
+		for (int c = sCol; c <= eCol; c++) {
 			int preRow = r+ofsRow, preCol = c+ofsCol;
 			int iconIdx = GetIconIdx(preRow, preCol);
 			int idx = r * mColNum + c;

@@ -108,6 +108,8 @@ void Zone::merge(const Zone &zone)
 
 void Zone::move(int row, int col)
 {
+	if (empty()) return;
+
 	mPnts[0].move(row, col);
 	mPnts[1].move(row, col);
 }

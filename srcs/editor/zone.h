@@ -8,7 +8,7 @@ public:
 	Point(int row, int col) : r(row), c(col) {}
 	void init() { r = c = -1; }
 	void init(int row, int col);
-	bool empty() const { return (r < 0); }
+	bool empty() const { return (r == -1 && c == -1); }
 	void move(int row, int col);
 
 	bool operator == (const Point &pnt) const { return (r == pnt.r && c == pnt.c); }
@@ -31,7 +31,7 @@ public:
 	void init(int row, int col);
 	void init(int row1, int col1, int row2, int col2);
 	void init(const Point &pnt1, const Point &pnt2);
-	bool empty() const { return (mPnts[0].r < 0 || mPnts[1].r < 0); }
+	bool empty() const { return (mPnts[0].r == -1 && mPnts[1].r == -1 && mPnts[0].c == -1 && mPnts[1].c == -1); }
 	bool contains(int row, int col) const;
 	bool contains(const Point &pnt) const;
 	void merge(int row, int col);
