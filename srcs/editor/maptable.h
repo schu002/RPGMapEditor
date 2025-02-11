@@ -19,6 +19,7 @@ private:
 		L_Attr_SelectMode	= 0x02, // 選択モードかどうか
 		L_Attr_CopyMode		= 0x04, // コピーモードかどうか
 		L_Attr_Moved		= 0x08, // 矢印キーによる移動/コピーを行ったかどうか
+		L_Attr_DragMove		= 0x10, // マウスドラッグによる移動処理中
 	};
 
 public:
@@ -61,7 +62,7 @@ private:
 	void Select(int row, int col);
 	bool Select(const Zone *pSelZone = NULL);
 	void UnSelect();
-	void Move(int key);
+	void Move(int pOfsRow, int pOfsCol);
 	void AddUndo(int ope, const Point *curPos = NULL);
 	bool eventFilter(QObject *obj, QEvent *e);
 

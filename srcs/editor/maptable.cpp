@@ -277,20 +277,13 @@ void MapTable::Clear()
 	mMainWin->NotifyEdited();
 }
 
-void MapTable::Move(int key)
+void MapTable::Move(int pOfsRow, int pOfsCol)
 {
-	if (mSelZone.empty()) return;
-
-	int moveRow = 0, moveCol = 0;
-	if		(key == Qt::Key_Left)  moveCol = -1;
-	else if (key == Qt::Key_Up)	   moveRow = -1;
-	else if (key == Qt::Key_Right) moveCol = 1;
-	else if (key == Qt::Key_Down)  moveRow = 1;
-	else return;
+	if (pOfsRow == 0 && pOfsCol == 0) return;
 
 	bool isCopy = IsCopyMode();
-	int incRow = (moveRow > 0)? -1 : 1;
-	int incCol = (moveCol > 0)? -1 : 1;
+	int incRow = (pOfsRow > 0)? -1 : 1;
+	int incCol = (pOfsCol > 0)? -1 : 1;
 	int sRow = (incRow > 0)? mSelZone[0].r : mSelZone[1].r;
 	int eRow = (incRow > 0)? mSelZone[1].r : mSelZone[0].r;
 	int sCol = (incCol > 0)? mSelZone[0].c : mSelZone[1].c;
@@ -305,11 +298,11 @@ void MapTable::Move(int key)
 			int iconIdx2 = (!isCopy && iniZone.contains(r, c))? -1 : GetIconIdx(r, c);
 			// printf("iconIdx1 = %d (%d %d)\n", iconIdx1, r+ofsRow, c+ofsCol);
 			// printf("iconIdx2 = %d (%d %d)\n", iconIdx2, r, c);
-			SetPixmap(r+moveRow, c+moveCol, iconIdx1, true, false);
+			SetPixmap(r+pOfsRow, c+pOfsCol, iconIdx1, true, false);
 			SetPixmap(r, c, iconIdx2, false, false);
 		}
 	}
-	mSelZone.move(moveRow, moveCol);
+	mSelZone.move(pOfsRow, pOfsCol);
 	clearSelection();
 	selectCells(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
 	mAttr |= L_Attr_Moved;
@@ -370,6 +363,13 @@ void MapTable::slot_OnPressed(int row, int col, int button, const QPoint &mouseP
 
 	mAttr |= L_Attr_MousePress;
 	mPressPnt.init(row, col);
+
+	if (mSelZone.contains(row, col)) {
+		mAttr |= L_Attr_DragMove;
+		mMovePnt = mSelZone[0];
+		return;
+	}
+
 	Zone newZone(mPressPnt);
 	ResetSelZonePixmap(&newZone);
 
@@ -386,6 +386,13 @@ void MapTable::slot_OnCurrentChanged(int row, int col)
 {
 	if ((mAttr & L_Attr_MousePress) == 0) return;
 	if (mPressPnt.empty()) return;
+
+	if (mAttr & L_Attr_DragMove) {
+		if (mSelZone.empty()) return;
+		int ofsRow = row-mSelZone[0].r-mPressPnt.r+mMovePnt.r, ofsCol = col-mSelZone[0].c-mPressPnt.c+mMovePnt.c;
+		Move(ofsRow, ofsCol);
+		return;
+	}
 
 	// 選択されなくなったセルは元のアイコンに戻す
 	Zone newZone(mPressPnt, Point(row, col));
@@ -423,7 +430,7 @@ void MapTable::FinalizeMove()
 
 	int ope = (IsCopyMode())? L_OPE_COPY : L_OPE_MOVE;
 	AddUndo(ope);
-	mAttr &= ~L_Attr_Moved;
+	mAttr &= ~(L_Attr_Moved|L_Attr_DragMove);
 
 	int ofsRow = mMovePnt.r - mSelZone[0].r;
 	int ofsCol = mMovePnt.c - mSelZone[0].c;
@@ -439,6 +446,7 @@ void MapTable::FinalizeMove()
 			}
 		}
 	}
+	mMovePnt.init();
 }
 
 bool MapTable::eventFilter(QObject *obj, QEvent *e)
@@ -448,7 +456,9 @@ bool MapTable::eventFilter(QObject *obj, QEvent *e)
 			if ((mAttr & L_Attr_MousePress) && !mSelZone.empty()) {
 				mAttr &= ~L_Attr_MousePress;
 				mPressPnt.init();
-				if (mAttr & L_Attr_SelectMode) {
+				if (mAttr & L_Attr_DragMove) {
+					FinalizeMove();
+				} else if (mAttr & L_Attr_SelectMode) {
 					mMovePnt = mSelZone[0];
 					mMainWin->NotifySelectChanged();
 				} else {
@@ -465,7 +475,14 @@ bool MapTable::eventFilter(QObject *obj, QEvent *e)
 		} else if (key == Qt::Key_Escape) {
 			UnSelect();
 		} else if (key == Qt::Key_Left || key == Qt::Key_Up || key == Qt::Key_Right || key == Qt::Key_Down) {
-			Move(key);
+			if (!mSelZone.empty()) {
+				int ofsRow = 0, ofsCol = 0;
+				if		(key == Qt::Key_Left)  ofsCol = -1;
+				else if (key == Qt::Key_Up)	   ofsRow = -1;
+				else if (key == Qt::Key_Right) ofsCol = 1;
+				else if (key == Qt::Key_Down)  ofsRow = 1;
+				Move(ofsRow, ofsCol);
+			}
 		} else if (key == Qt::Key_A && state == Qt::ControlButton) {
 			SelectAll();
 		}
