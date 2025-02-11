@@ -17,6 +17,8 @@ private:
 	enum {
 		L_Attr_MousePress	= 0x01, // マウスの左ボタンを押し下げてる状態かどうか
 		L_Attr_SelectMode	= 0x02, // 選択モードかどうか
+		L_Attr_CopyMode		= 0x04, // コピーモードかどうか
+		L_Attr_Moved		= 0x08, // 矢印キーによる移動/コピーを行ったかどうか
 	};
 
 public:
@@ -41,7 +43,7 @@ public:
 	void SelectAll();
 	bool IsSelectMode() const { return (mAttr & L_Attr_SelectMode)? true : false; }
 	bool IsSelectZone() const { return ((mAttr & L_Attr_SelectMode) && !mSelZone.empty())? true : false; }
-	bool IsCopyMode() const { return (mCopyPnt.empty())? false : true; }
+	bool IsCopyMode() const { return (mAttr & L_Attr_CopyMode)? true : false; }
 	void NotifyIconChanged(int idx = -1, QPixmap *pixmap = NULL);
 
 public slots:
@@ -55,7 +57,7 @@ private:
 	void ResetSelZonePixmap(const Zone *pZone);
 	void ChangeSize(int pRowNum, int pColNum);
 	void FinalizeInput();
-	void FinalizeCopy();
+	void FinalizeMove();
 	void Select(int row, int col);
 	bool Select(const Zone *pSelZone = NULL);
 	void UnSelect();
@@ -69,7 +71,7 @@ private:
 	int mRowNum, mColNum;
 	QPixmap *mCurPixmap;
 	Point mPressPnt;	// マウスを押した位置
-	Point mCopyPnt;		// コピーモード開始位置
+	Point mMovePnt;		// 移動開始位置
 	Zone mSelZone;
 	vector<int>	mData;
 	JournalStack mUndoStack;
