@@ -34,9 +34,10 @@ string trim(const std::string &s)
 
 MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
  :	QMainWindow(NULL, FALSE, pFlag), mFileMenu(NULL), mEditMenu(NULL),
-	mMenuUndo(-1), mMenuRedo(-1), mMenuGrid(-1), mMenuSelect(-1), mMenuSelectAll(-1), mMenuClear(-1),
+	mMenuUndo(-1), mMenuRedo(-1), mMenuGrid(-1), mMenuSelect(-1),
+	mMenuSelectAll(-1), mMenuClear(-1), mMenuCopy(-1),
 	mSaveBtn(NULL), mGridBtn(NULL), mSelectBtn(NULL), mSelectAllBtn(NULL),
-	mUndoBtn(NULL), mRedoBtn(NULL), mClearBtn(NULL), mSettingBtn(NULL),
+	mUndoBtn(NULL), mRedoBtn(NULL), mClearBtn(NULL), mCopyBtn(NULL), mSettingBtn(NULL),
 	mIconTable(NULL), mMapTable(NULL), mDataDir(pCurDir), mIsModified(false)
 {
 	mFileName = Message::TrC(MG_DefaultDataFile);
@@ -72,7 +73,10 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 		this, SLOT(OnGridMenu()), CTRL+Key_G);
 	mEditMenu->setItemChecked(mMenuGrid, true);
 	mMenuSelect = mEditMenu->insertItem(iconSelect, M_QSTR(Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(MG_OFF)),
-		this, SLOT(OnSelectMenu()), Key_S);
+		this, SLOT(OnSelectMode()), Key_S);
+	mMenuCopy = mEditMenu->insertItem(iconCopy, M_QSTR(Message::TrC(MG_CopyMode) + Message::TrC(MG_OFF)),
+		this, SLOT(OnCopyMode()), Key_C);
+	mEditMenu->setItemEnabled(mMenuCopy, false);
 	mEditMenu->insertSeparator();
 	mMenuSelectAll = mEditMenu->insertItem(iconSelectAll, M_QSTR(Message::TrC(MG_SelectAll)), this, SLOT(OnSelectAll()), CTRL+Key_A);
 	mEditMenu->setItemEnabled(mMenuSelectAll, false);
@@ -104,9 +108,13 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 	mGridBtn->setToggleButton(true);
 	mGridBtn->setOn(true);
 	mSelectBtn = new QToolButton(iconSelect, M_QSTR(Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(MG_OFF)),
-					"", this, SLOT(OnSelectBtn()), toolbar, "Select");
+					"", this, SLOT(OnSelectMode()), toolbar, "Select");
 	mSelectBtn->setToggleButton(true);
 	mSelectBtn->setOn(false);
+	mCopyBtn = new QToolButton(iconCopy, M_QSTR(Message::TrC(MG_CopyMode) + Message::TrC(MG_OFF)),
+					"", this, SLOT(OnCopyMode()), toolbar, "Copy");
+	mCopyBtn->setToggleButton(true);
+	mCopyBtn->setEnabled(false);
 
 	toolbar->addSeparator();
 	mSelectAllBtn = new QToolButton(iconSelectAll, M_QSTR(Message::TrC(MG_SelectAll)), "",
@@ -159,6 +167,8 @@ MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
 
 void MainWindow::Open()
 {
+	if (!ConfirmSave()) return;
+
 	QString fname = QFileDialog::getOpenFileName(
                     mDataDir.data(), M_QSTR(Message::TrC(MG_MapDataFile)),
                     this, "Open", M_QSTR(Message::TrC(MG_OpenMapFile)));
@@ -187,14 +197,20 @@ bool MainWindow::SaveAs()
 /*　終了　*/
 void MainWindow::Exit()
 {
-	if (mIsModified) {
-		int ret = QMessageBox::question(this, M_QSTR(Message::TrC(MG_Confirm)),
-								M_QSTR(Message::TrC(MG_ConfirmSave)),
-								QMessageBox::Yes, QMessageBox::No, QMessageBox::Cancel);
-		if (ret == QMessageBox::Cancel) return;
-		if (ret == QMessageBox::Yes) Save();
-	}
+	if (!ConfirmSave()) return;
 	qApp->quit();
+}
+
+bool MainWindow::ConfirmSave()
+{
+	if (!mIsModified) return true;
+
+	int ret = QMessageBox::question(this, M_QSTR(Message::TrC(MG_Confirm)),
+							M_QSTR(Message::TrC(MG_ConfirmSave)),
+							QMessageBox::Yes, QMessageBox::No, QMessageBox::Cancel);
+	if (ret == QMessageBox::Cancel) return false;
+	if (ret == QMessageBox::Yes) Save();
+	return true;
 }
 
 /*　元に戻す　*/
@@ -273,28 +289,23 @@ void MainWindow::_OnGrid(bool onoff)
 }
 
 /*　選択モード　*/
-void MainWindow::OnSelectMenu()
-{
-	bool onoff = (mEditMenu->isItemChecked(mMenuSelect))? false : true;
-	mEditMenu->setItemChecked(mMenuSelect, onoff);
-	mSelectBtn->setOn(onoff);
-	_OnSelect(onoff);
-}
-
-void MainWindow::OnSelectBtn()
-{
-	bool onoff = mSelectBtn->isOn();
-	mEditMenu->setItemChecked(mMenuSelect, onoff);
-	_OnSelect(onoff);
-}
-
-void MainWindow::_OnSelect(bool onoff)
+void MainWindow::OnSelectMode()
 {
 	if (!mMapTable) return;
+
+	bool onoff = (mMapTable->IsSelectMode())? false : true;
+	mEditMenu->setItemChecked(mMenuSelect, onoff);
+	mSelectBtn->setOn(onoff);
 	mCurPixmap->setEnabled(!onoff);
 	mCurPixName->setEnabled(!onoff);
 	mIconTable->setEnabled(!onoff);
 	mMapTable->SetSelectMode(onoff);
+	// 選択モード終了時は、コピーモードもオフにする
+	if (!onoff && mCopyBtn->isOn()) {
+		mEditMenu->setItemChecked(mMenuCopy, false);
+		mCopyBtn->setOn(false);
+		mMapTable->SetCopyMode(false);
+	}
 
 	mEditMenu->setItemEnabled(mMenuSelectAll, onoff);
 	mSelectAllBtn->setEnabled(onoff);
@@ -305,6 +316,21 @@ void MainWindow::_OnSelect(bool onoff)
 	mEditMenu->changeItem(mMenuSelect, M_QSTR(msg));
 	id = (onoff)? MG_SelectMode : MG_InputMode;
 	statusBar()->message(M_QSTR(Message::TrC(id)));
+}
+
+/*　コピーモード　*/
+void MainWindow::OnCopyMode()
+{
+	bool onoff = (mMapTable->IsCopyMode())? false : true;
+	mEditMenu->setItemChecked(mMenuCopy, onoff);
+	mCopyBtn->setOn(onoff);
+
+	int id = (mCopyBtn->isOn())? MG_ON : MG_OFF;
+	string msg = Message::TrC(MG_CopyMode) + Message::TrC(id);
+	mEditMenu->changeItem(mMenuCopy, M_QSTR(msg));
+	QToolTip::add(mCopyBtn, M_QSTR(msg));
+	statusBar()->message(M_QSTR(msg));
+	mMapTable->SetCopyMode(onoff);
 }
 
 /*　全て選択　*/
@@ -429,16 +455,7 @@ int MainWindow::WriteFile(const string &pFileName)
 	for (int i = 0; i < iconFiles.size(); i++) {
 		fprintf(fp, "%s%d = %s\n", L_KEY_ICONFILE, i+1, iconFiles[i].c_str());
 	}
-	int rowNum = mMapTable->GetRowNum(), colNum = mMapTable->GetColNum();
-	fprintf(fp, "%s = %d %d\n", L_KEY_MAPSIZE, rowNum, colNum);
-	fprintf(fp, "%s =", L_KEY_MAPDATA);
-	for (int r = 0; r < rowNum; r++) {
-		if (r > 0) fprintf(fp, "\t");
-		for (int c = 0; c < colNum; c++) {
-			fprintf(fp, "%3d,", mMapTable->GetIconIdx(r, c)+1);
-		}
-		if (r < rowNum-1) fprintf(fp, "%s\n", L_CR);
-	}
+	mMapTable->OutputFile(fp);
 	fclose(fp);
 	mIsModified = false;
 	SetTitle();
@@ -480,9 +497,11 @@ void MainWindow::NotifyCurIconChanged()
 
 void MainWindow::NotifySelectChanged()
 {
-	bool isSelect = mMapTable->IsSelect();
+	bool isSelect = mMapTable->IsSelectZone();
 	mEditMenu->setItemEnabled(mMenuClear, isSelect);
 	mClearBtn->setEnabled(isSelect);
+	mEditMenu->setItemEnabled(mMenuCopy, isSelect);
+	mCopyBtn->setEnabled(isSelect);
 }
 
 void MainWindow::NotifyEdited()
@@ -496,7 +515,7 @@ void MainWindow::NotifyEdited()
 
 void MainWindow::SetEditBtnEnable()
 {
-	bool onoff = (mSelectBtn->isOn() && mMapTable->IsSelect())? true : false;
+	bool onoff = (mSelectBtn->isOn() && mMapTable->IsSelectZone())? true : false;
 	mEditMenu->setItemEnabled(mMenuClear, onoff);
 	mClearBtn->setEnabled(onoff);
 }

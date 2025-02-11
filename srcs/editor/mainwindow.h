@@ -35,20 +35,20 @@ public slots:
 	void Redo();
 	void OnGridMenu();
 	void OnGridBtn();
-	void OnSelectMenu();
-	void OnSelectBtn();
+	void OnSelectMode();
 	void OnSelectAll();
+	void OnCopyMode();
 	void Clear();
 	void Setting();
 
 private:
+	bool ConfirmSave();
 	void ChangeIconDir(const char *pIconDir, bool pMsgFlg = true);
 	int LoadMapFile();
 	void ReadMapData(vector<int> &pMadData, const string &pStr) const;
 	int WriteFile(const string &pFileName);
 	void closeEvent(QCloseEvent *pEvent);
 	void _OnGrid(bool onoff);
-	void _OnSelect(bool onoff);
 	void SetEditBtnEnable();
 
 private:
@@ -58,7 +58,7 @@ private:
 
 	QPopupMenu *mFileMenu;
 	QPopupMenu *mEditMenu;
-	int mMenuUndo, mMenuRedo, mMenuGrid, mMenuSelect, mMenuSelectAll, mMenuClear;
+	int mMenuUndo, mMenuRedo, mMenuGrid, mMenuSelect, mMenuSelectAll, mMenuClear, mMenuCopy;
 	QToolButton *mSaveBtn;
 	QToolButton *mRedoBtn;
 	QToolButton *mUndoBtn;
@@ -66,6 +66,7 @@ private:
 	QToolButton *mSelectBtn;
 	QToolButton *mSelectAllBtn;
 	QToolButton *mClearBtn;
+	QToolButton *mCopyBtn;
 	QToolButton *mSettingBtn;
 
 	QLabel *mCurPixmap;

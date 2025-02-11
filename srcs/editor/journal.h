@@ -11,6 +11,7 @@ enum {
 	L_OPE_INPUT = 1,	// アイコン入力
 	L_OPE_CLEAR,		// クリア
 	L_OPE_MOVE,			// 移動
+	L_OPE_COPY,			// コピー
 };
 
 // ジャーナル

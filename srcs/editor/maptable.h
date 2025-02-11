@@ -26,6 +26,7 @@ public:
 	void Init(int pRowNum, int pColNum, vector<int> *pData = NULL,
 			const Zone *pSelZone = NULL, const Point *pCurPos = NULL,
 			bool pIsSelect = true);
+	void OutputFile(FILE *fp);
 
 	// row colの位置のアイコン番号を取得する
 	int GetIconIdx(int row, int col) const;
@@ -33,11 +34,14 @@ public:
 	int GetColNum() const { return mColNum; }
 
 	void SetSelectMode(bool onoff);
+	void SetCopyMode(bool onoff);
 	int Undo();
 	int Redo();
 	void Clear();
 	void SelectAll();
-	bool IsSelect() const { return ((mAttr & L_Attr_SelectMode) && !mSelZone.empty())? true : false; }
+	bool IsSelectMode() const { return (mAttr & L_Attr_SelectMode)? true : false; }
+	bool IsSelectZone() const { return ((mAttr & L_Attr_SelectMode) && !mSelZone.empty())? true : false; }
+	bool IsCopyMode() const { return (mCopyPnt.empty())? false : true; }
 	void NotifyIconChanged(int idx = -1, QPixmap *pixmap = NULL);
 
 public slots:
@@ -45,12 +49,13 @@ public slots:
 	void slot_OnCurrentChanged(int row, int col);
 
 private:
-	bool SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect = false);
+	bool SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect = false, bool pIsUpdate = true);
 	bool SetPixmap(const Zone &pZone, int pIconIdx);
 	void SetPixmap(const Zone &pZone, const QPixmap &pPixmap);
 	void ResetSelZonePixmap(const Zone *pZone);
 	void ChangeSize(int pRowNum, int pColNum);
 	void FinalizeInput();
+	void FinalizeCopy();
 	void Select(int row, int col);
 	bool Select(const Zone *pSelZone = NULL);
 	void UnSelect();
@@ -64,6 +69,7 @@ private:
 	int mRowNum, mColNum;
 	QPixmap *mCurPixmap;
 	Point mPressPnt;	// マウスを押した位置
+	Point mCopyPnt;		// コピーモード開始位置
 	Zone mSelZone;
 	vector<int>	mData;
 	JournalStack mUndoStack;

@@ -12,6 +12,7 @@ MG_Redo,				// やり直す
 MG_ShowGrid,			// グリッド表示：
 MG_SelectMode,			// 選択モード
 MG_InputMode,			// 入力モード
+MG_CopyMode,			// コピーモード：
 MG_COLON,				// ：
 MG_SelectAll,			// 全て選択
 MG_Clear,				// クリア

@@ -3,6 +3,9 @@
 #include "qbitmap.h"
 
 #define L_PIXSIZE		32
+#define L_KEY_MAPSIZE	"MapSize"
+#define L_KEY_MAPDATA	"MapData"
+#define L_CR			"<cr>"
 
 MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, int pRowNum, int pColNum)
  :	QTable(pParent), mMainWin(pMainWin), mRowNum(pRowNum), mColNum(pColNum), mAttr(0),
@@ -93,10 +96,26 @@ void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
 	}
 }
 
+void MapTable::OutputFile(FILE *fp)
+{
+	FinalizeCopy();
+
+	fprintf(fp, "%s = %d %d\n", L_KEY_MAPSIZE, mRowNum, mColNum);
+	fprintf(fp, "%s =", L_KEY_MAPDATA);
+	for (int r = 0; r < mRowNum; r++) {
+		if (r > 0) fprintf(fp, "\t");
+		for (int c = 0; c < mColNum; c++) {
+			fprintf(fp, "%3d,", GetIconIdx(r, c)+1);
+		}
+		if (r < mRowNum-1) fprintf(fp, "%s\n", L_CR);
+	}
+}
+
 void MapTable::ChangeSize(int pRowNum, int pColNum)
 {
 	if (mRowNum == pRowNum && mColNum == pColNum) return;
 
+	FinalizeCopy();
 	setNumRows(pRowNum);
 	setNumCols(pColNum);
 	for (int r = mRowNum; r < pRowNum; r++) setRowHeight(r, L_PIXSIZE);
@@ -116,6 +135,16 @@ void MapTable::SetSelectMode(bool onoff)
 	}
 }
 
+void MapTable::SetCopyMode(bool onoff)
+{
+	if (onoff) {
+		mCopyPnt = mSelZone[0];
+	} else {
+		FinalizeCopy();
+		mCopyPnt.init();
+	}
+}
+
 void MapTable::NotifyIconChanged(int idx, QPixmap *pixmap)
 {
 	mCurIconIdx = idx;
@@ -128,7 +157,7 @@ int MapTable::GetIconIdx(int row, int col) const
 	return mData[idx];
 }
 
-bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect)
+bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect, bool pIsUpdate)
 {
 	if (pIconIdx >= 0) {
 		QPixmap pix;
@@ -139,9 +168,11 @@ bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect)
 		setPixmap(pRow, pCol, QPixmap(""));
 	}
 
-	int idx = pRow * mColNum + pCol;
-	if (mData[idx] == pIconIdx) return false;
-	mData[idx] = pIconIdx;
+	if (pIsUpdate) {
+		int idx = pRow * mColNum + pCol;
+		if (mData[idx] == pIconIdx) return false;
+		mData[idx] = pIconIdx;
+	}
 	return true;
 }
 
@@ -203,6 +234,7 @@ void MapTable::UnSelect()
 {
 	if (mSelZone.empty()) return;
 
+	FinalizeCopy();
 	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
 		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
 			int idx = r * mColNum + c;
@@ -230,6 +262,7 @@ void MapTable::Clear()
 {
 	if (mSelZone.empty()) return;
 
+	FinalizeCopy();
 	AddUndo(L_OPE_CLEAR);
 
 	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
@@ -254,7 +287,8 @@ void MapTable::Move(int key)
 	else if (key == Qt::Key_Down)  moveRow = 1;
 	else return;
 
-	AddUndo(L_OPE_MOVE);
+	bool isCopy = (mCopyPnt.empty())? false : true;
+	if (!isCopy) AddUndo(L_OPE_MOVE);
 
 	int incRow = (moveRow > 0)? -1 : 1;
 	int incCol = (moveCol > 0)? -1 : 1;
@@ -262,11 +296,20 @@ void MapTable::Move(int key)
 	int eRow = (incRow > 0)? mSelZone[1].r : mSelZone[0].r;
 	int sCol = (incCol > 0)? mSelZone[0].c : mSelZone[1].c;
 	int eCol = (incCol > 0)? mSelZone[1].c : mSelZone[0].c;
+	int ofsRow = (isCopy)? mCopyPnt.r - mSelZone[0].r : 0;
+	int ofsCol = (isCopy)? mCopyPnt.c - mSelZone[0].c : 0;
 	for (int r = sRow; r != eRow+incRow; r += incRow) {
 		for (int c = sCol; c != eCol+incCol; c += incCol) {
-			int iconIdx = GetIconIdx(r, c);
-			SetPixmap(r+moveRow, c+moveCol, iconIdx, true);
-			SetPixmap(r, c, -1);
+			if (isCopy) {
+				int iconIdx1 = GetIconIdx(r+ofsRow, c+ofsCol);
+				int iconIdx2 = GetIconIdx(r, c);
+				SetPixmap(r+moveRow, c+moveCol, iconIdx1, true, false);
+				SetPixmap(r, c, iconIdx2, false, false);
+			} else {
+				int iconIdx = GetIconIdx(r, c);
+				SetPixmap(r+moveRow, c+moveCol, iconIdx, true);
+				SetPixmap(r, c, -1);
+			}
 		}
 	}
 	mSelZone.move(moveRow, moveCol);
@@ -279,6 +322,7 @@ void MapTable::Move(int key)
 
 int MapTable::Undo()
 {
+	FinalizeCopy();
 	if (mUndoStack.empty()) return 0;
 
 	Point curPos(currentRow(), currentColumn());
@@ -288,6 +332,8 @@ int MapTable::Undo()
 		preJnl.mCurPos = mUndoStack.back().mCurPos;
 		preJnl.mSelZone = mUndoStack.back().mSelZone;
 	}
+	if (preJnl.mOperation == L_OPE_COPY) preJnl.mSelZone.init();
+
 	Journal redoJnl(mRowNum, mColNum, preJnl.mOperation, mData, mSelZone, curPos);
 //	printf("undo %zd: (%d %d)\n", mUndoStack.size(), preJnl.mCurPos.r, preJnl.mCurPos.c);
 	mRedoStack.push_back(redoJnl);
@@ -321,6 +367,8 @@ void MapTable::AddUndo(int ope, const Point *pCurPos)
 void MapTable::slot_OnPressed(int row, int col, int button, const QPoint &mousePos)
 {
 	if ((button & Qt::LeftButton) == 0) return;
+
+	FinalizeCopy();
 
 	mAttr |= L_Attr_MousePress;
 	mPressPnt.init(row, col);
@@ -367,6 +415,25 @@ void MapTable::FinalizeInput()
 		}
 	}
 	mSelZone.init();
+}
+
+// コピーを確定する
+void MapTable::FinalizeCopy()
+{
+	if (mCopyPnt.empty() || mSelZone.empty()) return;
+
+	AddUndo(L_OPE_COPY);
+
+	int ofsRow = mCopyPnt.r - mSelZone[0].r;
+	int ofsCol = mCopyPnt.c - mSelZone[0].c;
+	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
+		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
+			int iconIdx = GetIconIdx(r+ofsRow, c+ofsCol);
+			int idx = r * mColNum + c;
+			mData[idx] = iconIdx;
+		}
+	}
+	mCopyPnt.init();
 }
 
 bool MapTable::eventFilter(QObject *obj, QEvent *e)
