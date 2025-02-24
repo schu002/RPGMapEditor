@@ -2,75 +2,68 @@
 #include "settingdlg_moc.h"
 
 SettingDlg::SettingDlg(QWidget *pParent)
-	: QDialog(pParent, NULL, TRUE), mIconTable(NULL)
+	: QDialog(pParent), mIconTable(NULL)
 {
-	setCaption(M_QSTR(Message::TrC(MG_Setting)));
+	setWindowTitle(M_QSTR(Message::TrC(MG_Setting)));
 	setModal(false);
 
-	QVBoxLayout *topLayout = new QVBoxLayout(this, 10, 10);
 	// マップサイズ
-	QHBoxLayout *layout1 = new QHBoxLayout(topLayout, 5);
-	QLabel *mapLbl = new QLabel(this);
-	mapLbl->setText(M_QSTR(Message::TrC(MG_MapSize)));
-	mapLbl->setFixedWidth(70);
-	layout1->addWidget(mapLbl);
-	QLabel *rowLbl = new QLabel(this);
-	rowLbl->setText(M_QSTR(Message::TrC(MG_MapSizeRow)));
-	layout1->addWidget(rowLbl);
-	mMapSizeRow = new QLineEdit(this);
+	QGroupBox *mapGrp = new QGroupBox(M_QSTR(Message::TrC(MG_MapSize)));
+	// QLabel *mapLbl = new QLabel(M_QSTR(Message::TrC(MG_MapSize)));
+	// mapLbl->setFixedWidth(70);
+	// hLayout1->addWidget(mapLbl);
+	QLabel *rowLbl = new QLabel(M_QSTR(Message::TrC(MG_MapSizeRow)));
+	mMapSizeRow = new QLineEdit();
 	mMapSizeRow->setFixedWidth(50);
-	layout1->addWidget(mMapSizeRow);
-	QLabel *colLbl = new QLabel(this);
-	colLbl->setText("  " + M_QSTR(Message::TrC(MG_MapSizeCol)));
-	layout1->addWidget(colLbl);
-	mMapSizeCol = new QLineEdit(this);
+	QLabel *colLbl = new QLabel("  " + M_QSTR(Message::TrC(MG_MapSizeCol)));
+	mMapSizeCol = new QLineEdit();
 	mMapSizeCol->setFixedWidth(50);
-	layout1->addWidget(mMapSizeCol);
-	QLabel *dmyLbl1 = new QLabel(this);
+	QLabel *dmyLbl1 = new QLabel("");
 	dmyLbl1->setFixedWidth(100);
-	layout1->addWidget(dmyLbl1);
-	QLabel *dmyLbl2 = new QLabel(this);
+	QLabel *dmyLbl2 = new QLabel("");
 	dmyLbl2->setFixedWidth(100);
-	layout1->addWidget(dmyLbl2);
+	QHBoxLayout *hLayout1 = new QHBoxLayout;
+	hLayout1->addWidget(rowLbl);
+	hLayout1->addWidget(mMapSizeRow);
+	hLayout1->addWidget(colLbl);
+	hLayout1->addWidget(mMapSizeCol);
+	hLayout1->addWidget(dmyLbl1);
+	hLayout1->addWidget(dmyLbl2);
+	mapGrp->setLayout(hLayout1);
 
-	QHBoxLayout *layout2 = new QHBoxLayout(topLayout, 5);
-	QLabel *dirLbl = new QLabel(this);
-	dirLbl->setText(M_QSTR(Message::TrC(MG_IconDir)));
-	layout2->addWidget(dirLbl);
-	mIconDir = new QLineEdit(this);
-	layout2->addWidget(mIconDir);
-	QPixmap iconDir("./lib/fileopen.png");
-	QPushButton *dirBtn = new QPushButton(iconDir, "", this);
+	// アイコンフォルダ
+	QGroupBox *dirGrp = new QGroupBox(M_QSTR(Message::TrC(MG_IconDir)));
+	// QLabel *dirLbl = new QLabel(M_QSTR(Message::TrC(MG_IconDir)));
+	// layout2->addWidget(dirLbl);
+	mIconDir = new QLineEdit();
+	QIcon iconDir("./lib/open.png");
+	QPushButton *dirBtn = new QPushButton(iconDir, "");
 	dirBtn->setFixedWidth(30);
+	QHBoxLayout *hLayout2 = new QHBoxLayout;
+	hLayout2->addWidget(mIconDir);
+	hLayout2->addWidget(dirBtn);
+	dirGrp->setLayout(hLayout2);
 	connect(dirBtn, SIGNAL(clicked()), this, SLOT(OpenIconDir()));
-	layout2->addWidget(dirBtn);
-//	QPixmap iconReload("./lib/reload.png");
-//	QPushButton *reloadBtn = new QPushButton(iconReload, "", this);
-//	reloadBtn->setFixedWidth(30);
-//	connect(reloadBtn, SIGNAL(clicked()), this, SLOT(ReloadIcon()));
-//	layout2->addWidget(reloadBtn);
 
-	// QHBoxLayout *layout3 = new QHBoxLayout(topLayout, 5);
-	// mIconTable = new IconTable(this, NULL);
-	// layout3->addWidget(mIconTable);
-
-	QHBoxLayout *ctlLayout = new QHBoxLayout(topLayout, 10);
-	QPushButton *okBtn = new QPushButton( "OK", this );
+	QHBoxLayout *ctlLayout = new QHBoxLayout;
+	QPushButton *okBtn = new QPushButton("OK");
 	okBtn->setFixedWidth(80);
-    okBtn->setDefault( TRUE );
+    okBtn->setDefault( true );
     ctlLayout->addWidget( okBtn );
 
-    QPushButton *cancelBtn = new QPushButton( "Cancel", this );
+    QPushButton *cancelBtn = new QPushButton("Cancel");
 	cancelBtn->setFixedWidth(80);
     ctlLayout->addWidget( cancelBtn );
-
     connect(okBtn, SIGNAL(clicked()), this, SLOT(accept()));
     connect(cancelBtn, SIGNAL(clicked()), this, SLOT(reject()));
-	resize(400, 120);
-}
 
-SettingDlg::~SettingDlg()
-{
+	QVBoxLayout *topLayout = new QVBoxLayout;
+    topLayout->addWidget(mapGrp);
+    topLayout->addWidget(dirGrp);
+    topLayout->addLayout(ctlLayout);
+    setLayout(topLayout);
+
+	resize(400, 120);
 }
 
 void SettingDlg::Init(const string &pIconDir, int pMapSizeRow, int pMapSizeCol)
@@ -86,15 +79,10 @@ void SettingDlg::Init(const string &pIconDir, int pMapSizeRow, int pMapSizeCol)
 void SettingDlg::OpenIconDir()
 {
 	string curDir = FileUtil::GetCurDir();
-	QString dirnm = QFileDialog::getExistingDirectory(curDir.c_str(), this, "IconDir",
-													M_QSTR(Message::TrC(MG_OpenIconDir)), TRUE);
+	QString dirnm = QFileDialog::getExistingDirectory(this, M_QSTR(Message::TrC(MG_OpenIconDir)), curDir.c_str());
 	if (dirnm.isEmpty()) return;
 
 	mIconDir->setText(dirnm);
-}
-
-void SettingDlg::ReloadIcon()
-{
 }
 
 QString SettingDlg::GetIconDir() const
@@ -104,10 +92,10 @@ QString SettingDlg::GetIconDir() const
 
 int SettingDlg::GetMapSizeRow() const
 {
-	return atoi(mMapSizeRow->text().latin1());
+	return mMapSizeRow->text().toInt();
 }
 
 int SettingDlg::GetMapSizeCol() const
 {
-	return atoi(mMapSizeCol->text().latin1());
+	return mMapSizeCol->text().toInt();
 }

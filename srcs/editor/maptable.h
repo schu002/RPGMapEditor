@@ -9,7 +9,7 @@
 
 class MainWindow;
 
-class MapTable : public QTable
+class MapTable : public QTableWidget
 {
 	Q_OBJECT
 
@@ -24,7 +24,6 @@ private:
 
 public:
 	MapTable(QWidget *pParent, MainWindow *pMainWin, int pRowNum = 0, int pColNum = 0);
-	~MapTable();
 
 	void Init(int pRowNum, int pColNum, vector<int> *pData = NULL,
 			const Zone *pSelZone = NULL, const Point *pCurPos = NULL,
@@ -36,6 +35,7 @@ public:
 	int GetRowNum() const { return mRowNum; }
 	int GetColNum() const { return mColNum; }
 
+	void SetDrawGrid(bool onoff);
 	void SetSelectMode(bool onoff);
 	void SetCopyMode(bool onoff);
 	int Undo();
@@ -44,17 +44,18 @@ public:
 	void SelectAll();
 	bool IsSelectMode() const { return (mAttr & L_Attr_SelectMode)? true : false; }
 	bool IsSelectZone() const { return ((mAttr & L_Attr_SelectMode) && !mSelZone.empty())? true : false; }
+	bool IsSelectAll() const;
 	bool IsCopyMode() const { return (mAttr & L_Attr_CopyMode)? true : false; }
-	void NotifyIconChanged(int idx = -1, QPixmap *pixmap = NULL);
+	void NotifyIconChanged(int idx = -1, const QPixmap *pixmap = NULL);
 
 public slots:
-	void slot_OnPressed(int row, int col, int button, const QPoint &mousePos);
-	void slot_OnCurrentChanged(int row, int col);
+	void slot_OnPressed(int row, int col);
+	void slot_OnCurrentChanged(int row, int col, int preRow, int preCol);
 
 private:
 	bool SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect = false, bool pIsUpdate = true);
-	bool SetPixmap(const Zone &pZone, int pIconIdx);
-	void SetPixmap(const Zone &pZone, const QPixmap &pPixmap);
+	void SetPixmap(int row, int col, const QPixmap &pixmap, int pShowFlg = -1);
+	void SetPixmap(const Zone &pZone, const QPixmap &pPixmap, int pShowFlg = -1);
 	void ResetSelZonePixmap(const Zone *pZone);
 	void ChangeSize(int pRowNum, int pColNum);
 	void FinalizeInput();
@@ -65,12 +66,13 @@ private:
 	void Move(int pOfsRow, int pOfsCol);
 	void AddUndo(int ope, const Point *curPos = NULL);
 	bool eventFilter(QObject *obj, QEvent *e);
+	bool event(QEvent *e);
 
 private:
 	int mAttr;
 	int mCurIconIdx;
 	int mRowNum, mColNum;
-	QPixmap *mCurPixmap;
+	const QPixmap *mCurPixmap;
 	Point mPressPnt;	// マウスを押した位置
 	Point mMovePnt;		// 移動開始位置
 	Zone mSelZone;
@@ -78,6 +80,7 @@ private:
 	JournalStack mUndoStack;
 	JournalStack mRedoStack;
 	MainWindow *mMainWin;
+	mutable QPixmap mTempPixmap;
 };
 
 #endif

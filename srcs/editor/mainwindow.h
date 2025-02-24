@@ -1,5 +1,5 @@
-#ifndef bmpfill_h
-#define bmpfill_h 1
+#ifndef mainwindow_h
+#define mainwindow_h 1
 
 #include <string>
 #include <algorithm>
@@ -13,61 +13,51 @@ class MainWindow : public QMainWindow
 	Q_OBJECT
 
 public:
-	MainWindow(const string &curDir, WFlags pflag = 0);
-	MapTable * GetMapTable() { return mMapTable; }
+	MainWindow(const string &curDir);
+	void Initiate();
 	IconTable * GetIconTable() { return mIconTable; }
+	MapTable * GetMapTable() { return mMapTable; }
 
 	bool GetPixmap(QPixmap &pPixmap, int pIconIdx) const;
-	void SetTitle();
-	void SetUndoEnable(bool onoff);
-	void SetRedoEnable(bool onoff);
 	void NotifyCurIconChanged();
 	void NotifySelectChanged();
 	void NotifyEdited();
 
-public slots:
-	void Open();
-	void Save();
-	bool SaveAs();
-	void Exit();
-
-	void Undo();
-	void Redo();
-	void OnGridMenu();
-	void OnGridBtn();
-	void OnSelectMode();
-	void OnSelectAll();
-	void OnCopyMode();
-	void Clear();
-	void Setting();
+private slots:
+	void onOpen();
+	void onSave();
+	void onExit();
+	void onUndo();
+	void onRedo();
+	void onGrid();
+	void onCopy();
+	void onSelect();
+	void onSelectAll();
+	void onClear();
+	void onSetting();
 
 private:
 	bool ConfirmSave();
-	void ChangeIconDir(const char *pIconDir, bool pMsgFlg = true);
 	int LoadMapFile();
-	void ReadMapData(vector<int> &pMadData, const string &pStr) const;
+	void ReadTableData(vector<int> &pData, const string &pStr) const;
 	int WriteFile(const string &pFileName);
 	void closeEvent(QCloseEvent *pEvent);
-	void _OnGrid(bool onoff);
+	void SetTitle();
 	void SetEditBtnEnable();
 
 private:
 	string mFileName;	// マップデータファイル
 	string mDataDir;	// マップデータフォルダ
-	string mIconDir;	// アイコンフォルダ
 
-	QPopupMenu *mFileMenu;
-	QPopupMenu *mEditMenu;
-	int mMenuUndo, mMenuRedo, mMenuGrid, mMenuSelect, mMenuSelectAll, mMenuClear, mMenuCopy;
-	QToolButton *mSaveBtn;
-	QToolButton *mRedoBtn;
-	QToolButton *mUndoBtn;
-	QToolButton *mGridBtn;
-	QToolButton *mSelectBtn;
-	QToolButton *mSelectAllBtn;
-	QToolButton *mClearBtn;
-	QToolButton *mCopyBtn;
-	QToolButton *mSettingBtn;
+	QMenu *mFileMenu;
+	QMenu *mEditMenu;
+	QAction *mGridAction;
+	QAction *mSelectAction;
+	QAction *mSelectAllAction;
+	QAction *mCopyAction;
+	QAction *mClearAction;
+	QAction *mUndoAction;
+	QAction *mRedoAction;
 
 	QLabel *mCurPixmap;
 	QLabel *mCurPixName;

@@ -1,22 +1,22 @@
-ï»¿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
 
 <!--
-	ãƒ¦ãƒ¼ã‚¶åˆ¥ç’°å¢ƒè¨­å®š
+	ƒ†[ƒU•ÊŠÂ‹«Ý’è
 
-	ã“ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ä¿®æ­£ã—ã¦ã‚‚ã€è‡ªå‹•ã§å†èª­ã¿è¾¼ã¿ã•ã‚Œã¾ã›ã‚“ã€‚
-	[ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆ][ã‚½ãƒªãƒ¥ãƒ¼ã‚·ãƒ§ãƒ³ã®å†ã‚¹ã‚­ãƒ£ãƒ³]ã‚’å®Ÿè¡Œã—ã¦ãã ã•ã„ã€‚
+	‚±‚Ìƒtƒ@ƒCƒ‹‚ðC³‚µ‚Ä‚àAŽ©“®‚ÅÄ“Ç‚Ýž‚Ý‚³‚ê‚Ü‚¹‚ñB
+	[ƒvƒƒWƒFƒNƒg][ƒ\ƒŠƒ…[ƒVƒ‡ƒ“‚ÌÄƒXƒLƒƒƒ“]‚ðŽÀs‚µ‚Ä‚­‚¾‚³‚¢B
  -->
 
   <PropertyGroup Label="UserMacros" >
 
-<!-- â–²â–²â–²ã€€ã‚«ã‚¹ã‚¿ãƒžã‚¤ã‚ºã“ã“ã‹ã‚‰ã€€â–²â–²â–² -->
+<!-- £££@ƒJƒXƒ^ƒ}ƒCƒY‚±‚±‚©‚ç@£££ -->
 
-    <QTDIR_32>D:\tool\Qt338</QTDIR_32>
-    <QTDIR_64>D:\tool\Qt338_x64</QTDIR_64>
+    <QTDIR_32>D:\tool\Qt599</QTDIR_32>
+    <QTDIR_64>D:\tool\Qt5</QTDIR_64>
 
-<!-- â–²â–²â–²ã€€ã‚«ã‚¹ã‚¿ãƒžã‚¤ã‚ºã“ã“ã¾ã§ã€€â–²â–²â–² -->
+<!-- £££@ƒJƒXƒ^ƒ}ƒCƒY‚±‚±‚Ü‚Å@£££ -->
 
   </PropertyGroup>
 
@@ -27,7 +27,7 @@
 	<QTDIR>$(QTDIR_64)</QTDIR>
 </PropertyGroup>
 
-<!-- ä»¥ä¸‹ã¯ã“ã®å®šç¾©ã‚’buildæ™‚ã«ç’°å¢ƒå¤‰æ•°ã«ã‚‚è¨­å®šã™ã‚‹ãŸã‚ã®ã‚‚ã® -->
+<!-- ˆÈ‰º‚Í‚±‚Ì’è‹`‚ðbuildŽž‚ÉŠÂ‹«•Ï”‚É‚àÝ’è‚·‚é‚½‚ß‚Ì‚à‚Ì -->
   <ItemGroup>
     <BuildMacro Include="QTDIR">
       <Value>$(QTDIR)</Value>
@@ -37,9 +37,9 @@
     </BuildMacro>
   </ItemGroup>
 
-<!-- è¿½åŠ ã®ã‚·ãƒ³ãƒœãƒ«
-	MOCEXE		moc.exeã®ãƒ•ãƒ«ãƒ‘ã‚¹ä»˜ã§ã™
-	RCCEXE		rcc.exeã®ãƒ•ãƒ«ãƒ‘ã‚¹ä»˜ã§ã™
+<!-- ’Ç‰Á‚ÌƒVƒ“ƒ{ƒ‹
+	MOCEXE		moc.exe‚Ìƒtƒ‹ƒpƒX•t‚Å‚·
+	RCCEXE		rcc.exe‚Ìƒtƒ‹ƒpƒX•t‚Å‚·
  -->
 
 <PropertyGroup Label="UserMacros">
@@ -47,13 +47,14 @@
 	<RCCEXE>$(QTDIR)\bin\rcc.exe</RCCEXE>
 </PropertyGroup>
 
-<!-- è¿½åŠ ã®ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã€ã‚¤ãƒ³ã‚¯ãƒ«ãƒ¼ãƒ‰ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒª -->
+<!-- ’Ç‰Á‚ÌƒRƒ“ƒpƒCƒ‹ƒIƒvƒVƒ‡ƒ“AƒCƒ“ƒNƒ‹[ƒhƒfƒBƒŒƒNƒgƒŠ -->
 
 
 <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
-    <ClCompile>
-      <AdditionalIncludeDirectories>$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+     <ClCompile>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;../commonsrc_qt5;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zm210 %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>SX_QT5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4267;4996</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -62,9 +63,10 @@
 </ItemDefinitionGroup>
 
 <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
-    <ClCompile>
-      <AdditionalIncludeDirectories>$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>-Zm210 %(AdditionalOptions)</AdditionalOptions>
+     <ClCompile>
+      <AdditionalIncludeDirectories>$(QTDIR)\include;../commonsrc_qt5;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>-Zm300 %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>SX_QT5;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4267;4996</DisableSpecificWarnings>
     </ClCompile>
     <Link>

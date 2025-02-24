@@ -1,6 +1,6 @@
 #include "common/commondef.h"
 #include "common/message.h"
-#include <qregexp.h> 
+// #include <qregexp.h> 
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -62,9 +62,9 @@ string Message::TrC(int pcode, ...)
 
 	// テキストを読んだメッセージなので、改行は文字列として格納されている。
 	// このため、"\\n" を "\n" の本当の改行コードに置き換える。
-	QString qstr = str.c_str();
-	qstr.replace(QRegExp("\\\\n"), "\n");
-	const char *format = qstr.latin1();
+//	QString qstr = str.c_str();
+//	qstr.replace(QRegExp("\\\\n"), "\n");
+	const char *format = str.c_str();
 
 	va_list arg;
 	va_start(arg, pcode);

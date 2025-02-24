@@ -1,6 +1,5 @@
 #include "maindef.h"
 #include "maptable_moc.h"
-#include "qbitmap.h"
 
 #define L_PIXSIZE		32
 #define L_KEY_MAPSIZE	"MapSize"
@@ -8,40 +7,41 @@
 #define L_CR			"<cr>"
 
 MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, int pRowNum, int pColNum)
- :	QTable(pParent), mMainWin(pMainWin), mRowNum(pRowNum), mColNum(pColNum), mAttr(0),
+ :	QTableWidget(pParent), mMainWin(pMainWin), mRowNum(pRowNum), mColNum(pColNum), mAttr(0),
 	mCurPixmap(NULL), mCurIconIdx(-1)
 {
 	if (mRowNum <= 0) mRowNum = L_DEFALUT_MAPSIZE_ROW;
 	if (mColNum <= 0) mColNum = L_DEFALUT_MAPSIZE_COL;
-	setNumRows(mRowNum);
-	setNumCols(mColNum);
-	setSelectionMode(QTable::Single);
+	setRowCount(mRowNum);
+	setColumnCount(mColNum);
+	setEditTriggers(QAbstractItemView::NoEditTriggers); // 編集不可にする
+	setSelectionMode(QAbstractItemView::NoSelection);
+	setStyleSheet("QTableView::item:selected { background: #B4D4FF; }"); // 選択時の色（デフォルトの青）
+	setIconSize(QSize(L_PIXSIZE, L_PIXSIZE));
 
-	setLeftMargin(30);
-	QHeader *hHeader = horizontalHeader();
-	QHeader *vHeader = verticalHeader();
-	hHeader->setResizeEnabled(false);
-	vHeader->setResizeEnabled(false);
-	hHeader->setClickEnabled(false);
-	vHeader->setClickEnabled(false);
+	setContentsMargins(0, 0, 0, 0);
+	QHeaderView *hHeader = horizontalHeader();
+	QHeaderView *vHeader = verticalHeader();
+	// hHeader->setSectionResizeMode(QHeaderView::Fixed);
+	// vHeader->setSectionResizeMode(QHeaderView::Fixed);
+	hHeader->setDefaultSectionSize(L_PIXSIZE);
+	vHeader->setDefaultSectionSize(L_PIXSIZE);
+	hHeader->setMinimumSectionSize(32);
+	vHeader->setMinimumSectionSize(32);
+	hHeader->setSectionsClickable(false);
+	vHeader->setSectionsClickable(false);
+	// ヘッダーをフラットなデザインにする
+//	hHeader->setStyleSheet("QHeaderView::section { border: none; background: whitesmoke; padding: 0px; }");
+//	vHeader->setStyleSheet("QHeaderView::section { border: none; background: whitesmoke; padding: 0px; }");
 
-	for (int r = 0; r < mRowNum; r++) {
-		setRowHeight(r, L_PIXSIZE);
-		setRowReadOnly(r, true);
-	}
-	for (int c = 0; c < mColNum; c++) {
-		setColumnWidth(c, L_PIXSIZE);
-		setColumnReadOnly(c, true);
-	}
+	for (int r = 0; r < mRowNum; r++) setRowHeight(r, L_PIXSIZE);
+	for (int c = 0; c < mColNum; c++) setColumnWidth(c, L_PIXSIZE);
 
-	connect(this, SIGNAL(pressed(int,int,int,const QPoint&)), this, SLOT(slot_OnPressed(int,int,int,const QPoint&)));
-	connect(this, SIGNAL(currentChanged(int,int)), this, SLOT(slot_OnCurrentChanged(int,int)));
+	connect(this, SIGNAL(cellPressed(int,int)), this, SLOT(slot_OnPressed(int,int)));
+	connect(this, SIGNAL(currentCellChanged(int,int,int,int)), this, SLOT(slot_OnCurrentChanged(int,int,int,int)));
 	mData.resize(mRowNum * mColNum);
 	fill(mData.begin(), mData.end(), -1);
-}
-
-MapTable::~MapTable()
-{
+	viewport()->installEventFilter(this);
 }
 
 void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
@@ -63,21 +63,18 @@ void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
 				int idx = r * mColNum + c;
 				if (mData[idx] == (*pData)[idx] && !selFlg1 && !selFlg2) continue;
 				mData[idx] = (*pData)[idx];
-				int iconIdx = mData[idx];
-				if (iconIdx >= 0 && mMainWin->GetPixmap(pix, iconIdx)) {
-					if (selFlg1 || (!pSelZone && selFlg2)) {
-						pix.setMask( pix.createHeuristicMask() );
-					}
-					setPixmap(r, c, pix);
-				} else {
-					clearCell(r, c);
-				}
+
+				bool isSelect = (selFlg1 || (!pSelZone && selFlg2))? true : false;
+				SetPixmap(r, c, mData[idx], isSelect, false);
 			}
 		}
 		if (pSelZone && mSelZone != *pSelZone && (mAttr & L_Attr_SelectMode)) {
 			mSelZone = *pSelZone;
 			clearSelection();
-			if (!mSelZone.empty()) selectCells(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
+			if (!mSelZone.empty()) {
+				QTableWidgetSelectionRange range(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
+				setRangeSelected(range, true);
+			}
 		}
 		if (pCurPos && !pCurPos->empty()) setCurrentCell(pCurPos->r, pCurPos->c);
 	} else {
@@ -107,7 +104,8 @@ void MapTable::OutputFile(FILE *fp)
 		for (int c = 0; c < mColNum; c++) {
 			fprintf(fp, "%3d,", GetIconIdx(r, c)+1);
 		}
-		if (r < mRowNum-1) fprintf(fp, "%s\n", L_CR);
+		if (r < mRowNum-1) fprintf(fp, "%s", L_CR);
+		fprintf(fp, "\n");
 	}
 }
 
@@ -116,8 +114,8 @@ void MapTable::ChangeSize(int pRowNum, int pColNum)
 	if (mRowNum == pRowNum && mColNum == pColNum) return;
 
 	FinalizeMove();
-	setNumRows(pRowNum);
-	setNumCols(pColNum);
+	setRowCount(pRowNum);
+	setColumnCount(pColNum);
 	for (int r = mRowNum; r < pRowNum; r++) setRowHeight(r, L_PIXSIZE);
 	for (int c = mColNum; c < pColNum; c++) setColumnWidth(c, L_PIXSIZE);
 	mRowNum = pRowNum;
@@ -125,13 +123,33 @@ void MapTable::ChangeSize(int pRowNum, int pColNum)
 	mData.resize(pRowNum * pColNum);
 }
 
+void MapTable::SetDrawGrid(bool onoff)
+{
+	setShowGrid(onoff);
+	const int pixSize = (onoff)? L_PIXSIZE-1 : L_PIXSIZE;
+	QPixmap pix;
+	for (int r = 0; r < mRowNum; r++) {
+		for (int c = 0; c < mColNum; c++) {
+			int idx = r * mColNum + c;
+			int iconIdx = mData[idx];
+			if (iconIdx < 0 || !mMainWin->GetPixmap(pix, iconIdx)) continue;
+			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
+			if (!label) continue;
+			label->setPixmap(pix);
+			label->setFixedSize(pixSize, pixSize);
+		}
+	}
+}
+
 void MapTable::SetSelectMode(bool onoff)
 {
 	if (onoff) {
 		mAttr |= L_Attr_SelectMode;
+		setSelectionMode(QAbstractItemView::ContiguousSelection);
 	} else {
 		UnSelect();
 		mAttr &= ~L_Attr_SelectMode;
+		setSelectionMode(QAbstractItemView::NoSelection);
 	}
 }
 
@@ -145,7 +163,7 @@ void MapTable::SetCopyMode(bool onoff)
 	}
 }
 
-void MapTable::NotifyIconChanged(int idx, QPixmap *pixmap)
+void MapTable::NotifyIconChanged(int idx, const QPixmap *pixmap)
 {
 	mCurIconIdx = idx;
 	mCurPixmap = pixmap;
@@ -164,44 +182,58 @@ bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect, bool 
 {
 	if (pRow < 0 || pCol < 0 || pRow >= mRowNum || pCol >= mColNum)
 		return false;
-
-	if (pIconIdx >= 0) {
-		QPixmap pix;
-		mMainWin->GetPixmap(pix, pIconIdx);
-		if (pIsSelect) pix.setMask( pix.createHeuristicMask() );
-		setPixmap(pRow, pCol, pix);
-	} else {
-		setPixmap(pRow, pCol, QPixmap(""));
+	int idx = pRow * mColNum + pCol;
+	if (pIconIdx < 0) {
+		if (!pIsUpdate || mData[idx] == pIconIdx) {
+			QLabel *label = qobject_cast<QLabel *>(cellWidget(pRow, pCol));
+			if (label) label->setPixmap(QPixmap(""));
+			return false;
+		}
 	}
 
+	QPixmap &pix = mTempPixmap;
+	if (mMainWin->GetPixmap(pix, pIconIdx)) {
+		if (pIsSelect) pix.setMask( pix.createHeuristicMask() );
+	}
+	int showFlg = (pIconIdx < 0)? 0 : 1;
+	SetPixmap(pRow, pCol, pix, showFlg);
+
 	if (pIsUpdate) {
-		int idx = pRow * mColNum + pCol;
 		if (mData[idx] == pIconIdx) return false;
 		mData[idx] = pIconIdx;
 	}
 	return true;
 }
 
-bool MapTable::SetPixmap(const Zone &pZone, int pIconIdx)
+void MapTable::SetPixmap(int row, int col, const QPixmap &pixmap, int pShowFlg)
 {
-	if (pZone.empty()) return false;
+	QLabel *label = qobject_cast<QLabel *>(cellWidget(row, col));
+	if (!label) {
+		label = new QLabel(this);
+		label->setPixmap(pixmap);
+		label->setAlignment(Qt::AlignCenter);
+		setCellWidget(row, col, label);
+	} else {
+		label->setPixmap(pixmap);
+	}
 
-	bool updFlg = false;
-	for (int r = pZone[0].r; r <= pZone[1].r; r++) {
-		for (int c = pZone[0].c; c <= pZone[1].c; c++) {
-			if (SetPixmap(r, c, pIconIdx)) updFlg = true;
+	if (pShowFlg >= 0) {
+		if (pShowFlg) {
+			label->show();
+		} else {
+			label->setPixmap(QPixmap(""));
+			label->hide();
 		}
 	}
-	return updFlg;
 }
 
-void MapTable::SetPixmap(const Zone &pZone, const QPixmap &pPixmap)
+void MapTable::SetPixmap(const Zone &pZone, const QPixmap &pPixmap, int pShowFlg)
 {
 	if (pZone.empty()) return;
 
 	for (int r = pZone[0].r; r <= pZone[1].r; r++) {
 		for (int c = pZone[0].c; c <= pZone[1].c; c++) {
-			setPixmap(r, c, pPixmap);
+			SetPixmap(r, c, pPixmap, pShowFlg);
 		}
 	}
 }
@@ -225,12 +257,8 @@ bool MapTable::Select(const Zone *pSelZone)
 
 	for (int r = selZone[0].r; r <= selZone[1].r; r++) {
 		for (int c = selZone[0].c; c <= selZone[1].c; c++) {
-			// if (mSelZone.contains(r, c)) continue;
 			int idx = r * mColNum + c;
-			QPixmap pix;
-			mMainWin->GetPixmap(pix, mData[idx]);
-			pix.setMask( pix.createHeuristicMask() );
-			setPixmap(r, c, pix);
+			SetPixmap(r, c, mData[idx], true, false);
 		}
 	}
 	return true;
@@ -244,16 +272,17 @@ void MapTable::UnSelect()
 	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
 		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
 			int idx = r * mColNum + c;
-			QPixmap pix;
-			mMainWin->GetPixmap(pix, mData[idx]);
-			setPixmap(r, c, pix);
+			SetPixmap(r, c, mData[idx], false, false);
 		}
 	}
+
+	QTableWidgetSelectionRange range(0, 0, mRowNum-1, mColNum-1);
+    setRangeSelected(range, false);
 	mPressPnt.init();
 	mSelZone.init();
 	mMainWin->NotifySelectChanged();
 }
-	
+
 void MapTable::SelectAll()
 {
 	if ((mAttr & L_Attr_SelectMode) == 0) return;
@@ -261,7 +290,8 @@ void MapTable::SelectAll()
 	FinalizeMove();
 	mSelZone.init(0, 0, mRowNum-1, mColNum-1);
 	Select();
-	selectCells(0, 0, mRowNum-1, mColNum-1);
+	QTableWidgetSelectionRange range(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
+    setRangeSelected(range, true);
 	mMainWin->NotifySelectChanged();
 }
 
@@ -278,13 +308,18 @@ void MapTable::Clear()
 			SetPixmap(r, c, -1);
 		}
 	}
-	clearSelection();
+	QTableWidgetSelectionRange range(0, 0, mRowNum-1, mColNum-1);
+    setRangeSelected(range, false);
 	mSelZone.init();
 	mMainWin->NotifyEdited();
 }
 
 void MapTable::Move(int pOfsRow, int pOfsCol)
 {
+	if		(mSelZone[0].r + pOfsRow < 0) pOfsRow = -mSelZone[0].r;
+	else if (mSelZone[1].r + pOfsRow > mRowNum-1) pOfsRow = mRowNum-mSelZone[1].r-1;
+	if		(mSelZone[0].c + pOfsCol < 0) pOfsCol = -mSelZone[0].c;
+	else if (mSelZone[1].c + pOfsCol > mColNum-1) pOfsCol = mColNum-mSelZone[1].c-1;
 	if (pOfsRow == 0 && pOfsCol == 0) return;
 
 	bool isCopy = IsCopyMode();
@@ -309,12 +344,12 @@ void MapTable::Move(int pOfsRow, int pOfsCol)
 		}
 	}
 	mSelZone.move(pOfsRow, pOfsCol);
-	clearSelection();
-	selectCells(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
+	QTableWidgetSelectionRange range(0, 0, mRowNum-1, mColNum-1);
+    setRangeSelected(range, false);
+	QTableWidgetSelectionRange range2(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
+    setRangeSelected(range2, true);
 	mAttr |= L_Attr_Moved;
-
-	mMainWin->NotifyEdited();
-	Sleep(100);
+	// Sleep(100);
 }
 
 int MapTable::Undo()
@@ -361,34 +396,46 @@ void MapTable::AddUndo(int ope, const Point *pCurPos)
 	if (!pCurPos) mRedoStack.clear();
 }
 
-void MapTable::slot_OnPressed(int row, int col, int button, const QPoint &mousePos)
+bool MapTable::IsSelectAll() const
 {
-	if ((button & Qt::LeftButton) == 0) return;
+	if ((mAttr & L_Attr_SelectMode) == 0) return false;
+	return (mSelZone[0].r == 0 && mSelZone[0].c == 0 &&
+			mSelZone[1].r == mRowNum-1 && mSelZone[1].c == mColNum-1)?
+			true : false;
+}
 
+void MapTable::slot_OnPressed(int row, int col)
+{
 	FinalizeMove();
 
 	mAttr |= L_Attr_MousePress;
 	mPressPnt.init(row, col);
 
-	if (mSelZone.contains(row, col)) {
-		mAttr |= L_Attr_DragMove;
-		mMovePnt = mSelZone[0];
-		return;
-	}
-
-	Zone newZone(mPressPnt);
-	ResetSelZonePixmap(&newZone);
-
-	mSelZone = newZone;
-
 	if (mAttr & L_Attr_SelectMode) {
+		if (mSelZone.contains(row, col) && !IsSelectAll()) {
+			// ドラッグ移動開始
+			mAttr |= L_Attr_DragMove;
+			mMovePnt = mSelZone[0];
+			setSelectionMode(QAbstractItemView::NoSelection);
+			return;
+		}
+
+		Zone newZone(mPressPnt);
+		ResetSelZonePixmap(&newZone);
+
+		mSelZone = newZone;
+
+		QTableWidgetSelectionRange range(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
+		setRangeSelected(range, true);
 		Select();
 	} else {
-		setPixmap(row, col, (mCurPixmap)? *mCurPixmap : QPixmap(""));
+		mSelZone.init(mPressPnt);
+		int showFlg = (mCurIconIdx < 0)? 0 : 1;
+		SetPixmap(row, col, (mCurPixmap)? *mCurPixmap : QPixmap(""), showFlg);
 	}
 }
 
-void MapTable::slot_OnCurrentChanged(int row, int col)
+void MapTable::slot_OnCurrentChanged(int row, int col, int preRow, int preCol)
 {
 	if ((mAttr & L_Attr_MousePress) == 0) return;
 	if (mPressPnt.empty()) return;
@@ -408,7 +455,8 @@ void MapTable::slot_OnCurrentChanged(int row, int col)
 	if (mAttr & L_Attr_SelectMode) {
 		Select();
 	} else {
-		SetPixmap(mSelZone, (mCurPixmap)? *mCurPixmap : QPixmap(""));
+		int showFlg = (mCurIconIdx < 0)? 0 : 1;
+		SetPixmap(mSelZone, (mCurPixmap)? *mCurPixmap : QPixmap(""), showFlg);
 	}
 }
 
@@ -434,50 +482,72 @@ void MapTable::FinalizeMove()
 	if ((mAttr & L_Attr_Moved) == 0) return;
 	if (mMovePnt.empty() || mSelZone.empty()) return;
 
+	int ofsRow = mMovePnt.r - mSelZone[0].r;
+	int ofsCol = mMovePnt.c - mSelZone[0].c;
+	if (ofsRow == 0 && ofsCol == 0) return;
+
 	int ope = (IsCopyMode())? L_OPE_COPY : L_OPE_MOVE;
 	AddUndo(ope);
 	mAttr &= ~(L_Attr_Moved|L_Attr_DragMove);
+	setSelectionMode(QAbstractItemView::ContiguousSelection);
 
-	int ofsRow = mMovePnt.r - mSelZone[0].r;
-	int ofsCol = mMovePnt.c - mSelZone[0].c;
-	int sRow = M_MAX(mSelZone[0].r, 0), eRow = M_MIN(mSelZone[1].r, mRowNum-1);
-	int sCol = M_MAX(mSelZone[0].c, 0), eCol = M_MIN(mSelZone[1].c, mColNum-1);
-	for (int r = sRow; r <= eRow; r++) {
-		for (int c = sCol; c <= eCol; c++) {
+	int incRow = (ofsRow < 0)? -1 : 1;
+	int incCol = (ofsCol < 0)? -1 : 1;
+	int sRow = (incRow > 0)? mSelZone[0].r : mSelZone[1].r;
+	int eRow = (incRow > 0)? mSelZone[1].r : mSelZone[0].r;
+	int sCol = (incCol > 0)? mSelZone[0].c : mSelZone[1].c;
+	int eCol = (incCol > 0)? mSelZone[1].c : mSelZone[0].c;
+	for (int r = sRow; r != eRow+incRow; r += incRow) {
+		for (int c = sCol; c != eCol+incCol; c += incCol) {
 			int preRow = r+ofsRow, preCol = c+ofsCol;
 			int iconIdx = GetIconIdx(preRow, preCol);
 			int idx = r * mColNum + c;
 			mData[idx] = iconIdx;
-			if (!IsCopyMode() && !mSelZone.contains(preRow, preCol)) {
-				int preIdx = preRow * mColNum + preCol;
-				mData[preIdx] = -1;
+		}
+	}
+
+	// 元の選択領域を初期化する
+	if (ope == L_OPE_MOVE) {
+		for (int r = mSelZone[0].r+ofsRow; r <= mSelZone[1].r+ofsRow; r++) {
+			for (int c = mSelZone[0].c+ofsCol; c <= mSelZone[1].c+ofsCol; c++) {
+				if (mSelZone.contains(r, c)) continue;
+				int idx = r * mColNum + c;
+				mData[idx] = -1;
 			}
 		}
 	}
 	mMovePnt.init();
+	mMainWin->NotifyEdited();
 }
 
 bool MapTable::eventFilter(QObject *obj, QEvent *e)
 {
+	if (obj != viewport()) return false;
+
 	if (e->type() == QEvent::MouseButtonRelease) {
-		if (((QMouseEvent *)e)->button() == QMouseEvent::LeftButton) {
-			if ((mAttr & L_Attr_MousePress) && !mSelZone.empty()) {
-				mAttr &= ~L_Attr_MousePress;
-				mPressPnt.init();
-				if (mAttr & L_Attr_DragMove) {
-					FinalizeMove();
-				} else if (mAttr & L_Attr_SelectMode) {
-					mMovePnt = mSelZone[0];
-					mMainWin->NotifySelectChanged();
-				} else {
-					FinalizeInput();
-					mMainWin->NotifyEdited();
-				}
+		if (((QMouseEvent *)e)->button() != Qt::LeftButton) return false;
+		if ((mAttr & L_Attr_MousePress) && !mSelZone.empty()) {
+			mAttr &= ~L_Attr_MousePress;
+			mPressPnt.init();
+			if (mAttr & L_Attr_DragMove) {
+				FinalizeMove();
+			} else if (mAttr & L_Attr_SelectMode) {
+				mMovePnt = mSelZone[0];
+				mMainWin->NotifySelectChanged();
+			} else {
+				FinalizeInput();
+				mMainWin->NotifyEdited();
 			}
 		}
-	} else if (e->type() == QEvent::KeyPress) {
+	}
+	return false;
+}
+
+bool MapTable::event(QEvent *e)
+{
+	if (e->type() == QEvent::KeyPress && (mAttr & L_Attr_SelectMode)) {
 		const int key = ((QKeyEvent *)e)->key();
-		const int state = ((QKeyEvent *)e)->state();
+		const int mod = ((QKeyEvent *)e)->modifiers();
 		if (key == Qt::Key_Delete) {
 			Clear();
 		} else if (key == Qt::Key_Escape) {
@@ -491,9 +561,9 @@ bool MapTable::eventFilter(QObject *obj, QEvent *e)
 				else if (key == Qt::Key_Down)  ofsRow = 1;
 				Move(ofsRow, ofsCol);
 			}
-		} else if (key == Qt::Key_A && state == Qt::ControlButton) {
+		} else if (key == Qt::Key_A && (mod & Qt::ControlModifier)) {
 			SelectAll();
 		}
 	}
-	return QTable::eventFilter(obj, e);
+	return QTableWidget::event(e);
 }

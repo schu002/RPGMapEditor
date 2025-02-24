@@ -7,7 +7,6 @@ class SettingDlg : public QDialog
 
 public:
 	SettingDlg(QWidget *pParent);
-	~SettingDlg();
 	void Init(const string &pIconDir, int pMapSizeRow, int pMapSizeCol);
 	QString GetIconDir() const;
 	int GetMapSizeRow() const;
@@ -15,7 +14,6 @@ public:
 
 public slots:
 	void OpenIconDir();
-	void ReloadIcon();
 
 private:
 	QLineEdit *mMapSizeRow, *mMapSizeCol;

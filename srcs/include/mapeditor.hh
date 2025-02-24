@@ -19,7 +19,7 @@ MG_Clear,				// クリア
 MG_ON,					// オン
 MG_OFF,					// オフ
 MG_Error,				// エラー
-MG_Setting,				// 設定...
+MG_Setting,				// 設定
 MG_Exit,				// 終了(&X)
 MG_Confirm,				// 確認
 MG_DefaultDataFile,		// 新規マップデータ.txt
@@ -35,9 +35,9 @@ MG_IconFileNotRegist,	// アイコンファイルが登録されていません。
 MG_IconFileNotSelected,	// アイコンファイルが選択されていません。
 MG_IconFileLoaded,		// %d 個のアイコンファイルを読み込みました。
 MG_MapFileOpened,		// マップデータ "%s" をオープンしました。
-MG_ConfirmSave,			// マップデータは変更されています。\n保存しますか？
+MG_ConfirmSave,			// マップデータは変更されています。<br>保存しますか？
 MG_OpenFileError,		// ファイル "%s" のオープンに失敗しました。
-MG_ImageFileNotFound,	// "%s"\nアイコンフォルダに画像ファイルが見つかりません。
+MG_ImageFileNotFound,	// "%s"<br>アイコンフォルダに画像ファイルが見つかりません。
 
 MG_EndCode
 };

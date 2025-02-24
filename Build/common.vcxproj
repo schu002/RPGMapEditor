@@ -229,7 +229,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release_DLL|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release_DLL|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\srcs\common\myqapplication.cpp" />
     <ClCompile Include="..\srcs\common\fileutil.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug_DLL|x64'">Use</PrecompiledHeader>
     </ClCompile>
@@ -245,7 +244,6 @@
     <ClInclude Include="..\srcs\common\ctokenizer.h" />
     <ClInclude Include="..\srcs\common\fileutil.h" />
     <ClInclude Include="..\srcs\common\fileiter.h" />
-    <ClInclude Include="..\srcs\common\myqapplication.h" />
     <ClInclude Include="..\srcs\common\message.h" />
     <ClInclude Include="..\srcs\common\messagecontrol.h" />
   </ItemGroup>

@@ -113,3 +113,9 @@ void Zone::move(int row, int col)
 	mPnts[0].move(row, col);
 	mPnts[1].move(row, col);
 }
+
+void Zone::Dump(bool pRet) const
+{
+	printf("(%d %d) (%d %d)", mPnts[0].r, mPnts[0].c, mPnts[1].r, mPnts[1].c);
+	if (pRet) printf("\n");
+}

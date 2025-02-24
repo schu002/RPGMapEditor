@@ -4,6 +4,7 @@
 // マップデータファイルで使用するキー
 #define L_KEY_ICONDIR	"IconDir"
 #define L_KEY_ICONFILE	"IconFile"
+#define L_KEY_ICONTABLE	"IconTable"
 #define L_KEY_ICONSIZE	"IconSize"
 #define L_KEY_MAPSIZE	"MapSize"
 #define L_KEY_MAPDATA	"MapData"
@@ -15,166 +16,166 @@ const string WHITESPACE = " \n\r\t\f\v";
 
 string ltrim(const string &s)
 {
-    size_t start = s.find_first_not_of(WHITESPACE);
-    return (start == std::string::npos) ? "" : s.substr(start);
+	size_t start = s.find_first_not_of(WHITESPACE);
+	return (start == std::string::npos) ? "" : s.substr(start);
 }
  
 string rtrim(const string &s)
 {
-    size_t end = s.find_last_not_of(WHITESPACE);
-    return (end == std::string::npos) ? "" : s.substr(0, end + 1);
+	size_t end = s.find_last_not_of(WHITESPACE);
+	return (end == std::string::npos) ? "" : s.substr(0, end + 1);
 }
  
 string trim(const std::string &s)
 {
-    return rtrim(ltrim(s));
+	return rtrim(ltrim(s));
 }
 
 };
 
-MainWindow::MainWindow(const string &pCurDir, WFlags pFlag)
- :	QMainWindow(NULL, FALSE, pFlag), mFileMenu(NULL), mEditMenu(NULL),
-	mMenuUndo(-1), mMenuRedo(-1), mMenuGrid(-1), mMenuSelect(-1),
-	mMenuSelectAll(-1), mMenuClear(-1), mMenuCopy(-1),
-	mSaveBtn(NULL), mGridBtn(NULL), mSelectBtn(NULL), mSelectAllBtn(NULL),
-	mUndoBtn(NULL), mRedoBtn(NULL), mClearBtn(NULL), mCopyBtn(NULL), mSettingBtn(NULL),
+MainWindow::MainWindow(const string &pCurDir)
+ :	QMainWindow(NULL),
 	mIconTable(NULL), mMapTable(NULL), mDataDir(pCurDir), mIsModified(false)
 {
 	mFileName = Message::TrC(MG_DefaultDataFile);
 
 	// アイコン
-	QPixmap iconApp("./lib/app.png");
-	QPixmap iconOpen("./lib/fileopen.png");
-	QPixmap iconSave("./lib/filesave.png");
-	QPixmap iconClear("./lib/clear.png");
-	QPixmap iconCopy("./lib/copy.png");
-	QPixmap iconUndo("./lib/undo.png");
-	QPixmap iconRedo("./lib/redo.png");
-	QPixmap iconSelect("./lib/select.png");
-	QPixmap iconSelectAll("./lib/selectall.png");
-	QPixmap iconGrid("./lib/grid.png");
-	QPixmap iconSetup("./lib/setup.png");
+	QIcon iconApp("./lib/app.png");
+	QIcon iconOpen("./lib/open.png");
+	QIcon iconSave("./lib/save.png");
+	QIcon iconClear("./lib/clear.png");
+	QIcon iconCopy("./lib/copy.png");
+	QIcon iconUndo("./lib/undo.png");
+	QIcon iconRedo("./lib/redo.png");
+	QIcon iconSelect("./lib/select.png");
+	QIcon iconSelectAll("./lib/selectall.png");
+	QIcon iconGrid("./lib/grid.png");
+	QIcon iconSetup("./lib/setup.png");
 
-	setIcon(iconApp);
+	// ウィンドウのタイトル設定
+	setWindowTitle(M_QSTR(Message::TrC(MG_RPGMap_Editor)));
+	setWindowIcon(iconApp);
 
-	//Menu Bar
-	mFileMenu = new QPopupMenu(this, "File");
-	mFileMenu->insertItem(iconOpen, M_QSTR(Message::TrC(MG_File_Open)), this, SLOT(Open()), CTRL+Key_O);
-	mFileMenu->insertItem(iconSave, M_QSTR(Message::TrC(MG_File_Save)), this, SLOT(Save()), CTRL+Key_S);
-	mFileMenu->insertSeparator();
-	mFileMenu->insertItem(M_QSTR(Message::TrC(MG_Exit)),  this, SLOT(Exit()));
-	menuBar()->insertItem(M_QSTR(Message::TrC(MG_File)), mFileMenu);
+	QAction *openAction = new QAction(iconOpen, M_QSTR(Message::TrC(MG_File_Open)), this);
+	QAction *saveAction = new QAction(iconSave, M_QSTR(Message::TrC(MG_File_Save)), this);
+	QAction *exitAction = new QAction(M_QSTR(Message::TrC(MG_Exit)), this);
+	mUndoAction = new QAction(iconUndo, M_QSTR(Message::TrC(MG_Undo)), this);
+	mRedoAction = new QAction(iconRedo, M_QSTR(Message::TrC(MG_Redo)), this);
+	QString msg = M_QSTR(Message::TrC(MG_ShowGrid)+Message::TrC(MG_ON));
+	mGridAction = new QAction(iconGrid, msg, this);
+	mGridAction->setCheckable(true);
+	mGridAction->setChecked(true);
+	mGridAction->setToolTip(msg);
+	msg = M_QSTR(Message::TrC(MG_CopyMode)+Message::TrC(MG_OFF));
+	mCopyAction = new QAction(iconCopy, msg, this);
+	mCopyAction->setCheckable(true);
+	mCopyAction->setChecked(false);
+	mCopyAction->setToolTip(msg);
+	msg = M_QSTR(Message::TrC(MG_SelectMode)+Message::TrC(MG_COLON)+Message::TrC(MG_OFF));
+	mSelectAction = new QAction(iconSelect, msg, this);
+	mSelectAction->setCheckable(true);
+	mSelectAction->setChecked(false);
+	mSelectAction->setToolTip(msg);
+	mSelectAllAction = new QAction(iconSelectAll, M_QSTR(Message::TrC(MG_SelectAll)), this);
+	mClearAction = new QAction(iconClear, M_QSTR(Message::TrC(MG_Clear)), this);
+	QAction *settingAction = new QAction(iconSetup, M_QSTR(Message::TrC(MG_Setting) + "..."), this);
 
-	mEditMenu = new QPopupMenu(this, "Edit");
-	mMenuUndo = mEditMenu->insertItem(iconUndo, M_QSTR(Message::TrC(MG_Undo)), this, SLOT(Undo()), CTRL+Key_Z);
-	mMenuRedo = mEditMenu->insertItem(iconRedo, M_QSTR(Message::TrC(MG_Redo)), this, SLOT(Redo()), CTRL+Key_R);
-	mEditMenu->insertSeparator();
-	mMenuGrid = mEditMenu->insertItem(iconGrid, M_QSTR(Message::TrC(MG_ShowGrid) + Message::TrC(MG_ON)),
-		this, SLOT(OnGridMenu()), CTRL+Key_G);
-	mEditMenu->setItemChecked(mMenuGrid, true);
-	mMenuSelect = mEditMenu->insertItem(iconSelect, M_QSTR(Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(MG_OFF)),
-		this, SLOT(OnSelectMode()), Key_S);
-	mMenuCopy = mEditMenu->insertItem(iconCopy, M_QSTR(Message::TrC(MG_CopyMode) + Message::TrC(MG_OFF)),
-		this, SLOT(OnCopyMode()), Key_C);
-	mEditMenu->setItemEnabled(mMenuCopy, false);
-	mEditMenu->insertSeparator();
-	mMenuSelectAll = mEditMenu->insertItem(iconSelectAll, M_QSTR(Message::TrC(MG_SelectAll)), this, SLOT(OnSelectAll()), CTRL+Key_A);
-	mEditMenu->setItemEnabled(mMenuSelectAll, false);
-	mMenuClear = mEditMenu->insertItem(iconClear, M_QSTR(Message::TrC(MG_Clear)), this, SLOT(Clear()));
-	mEditMenu->setItemEnabled(mMenuClear, false);
-	mEditMenu->insertSeparator();
-	mEditMenu->insertItem(iconSetup, M_QSTR(Message::TrC(MG_Setting)), this, SLOT(Setting()));
-	menuBar()->insertItem(M_QSTR(Message::TrC(MG_Edit)), mEditMenu);
+	// メニューバーの作成
+	mFileMenu = menuBar()->addMenu(M_QSTR(Message::TrC(MG_File)));
+	mFileMenu->addAction(openAction);
+	mFileMenu->addAction(saveAction);
+	mFileMenu->addAction(exitAction);
 
-	//Tool Button
-	QToolBar *toolbar = new QToolBar(this);
-	toolbar->setMovingEnabled(FALSE);
+	mEditMenu = menuBar()->addMenu(M_QSTR(Message::TrC(MG_Edit)));
+	mEditMenu->addAction(mUndoAction);
+	mEditMenu->addAction(mRedoAction);
+	mEditMenu->addSeparator();
+	mEditMenu->addAction(mGridAction);
+	mEditMenu->addAction(mSelectAction);
+	mEditMenu->addAction(mCopyAction);
+	mEditMenu->addSeparator();
+	mEditMenu->addAction(mSelectAllAction);
+	mEditMenu->addAction(mClearAction);
+	mEditMenu->addSeparator();
+	mEditMenu->addAction(settingAction);
 
-	toolbar->addSeparator();
-	QToolButton *openBtn = new QToolButton(iconOpen, M_QSTR(Message::TrC(MG_File_Open)),
-					"", this, SLOT(Open()), toolbar, "Open");
-	mSaveBtn = new QToolButton(iconSave, M_QSTR(Message::TrC(MG_File_Save)),
-					"", this, SLOT(Save()), toolbar, "Save");
-	toolbar->addSeparator();
+	// ツールバーの作成
+	QToolBar *toolBar = addToolBar("Main Toolbar");
+	toolBar->addAction(openAction);
+	toolBar->addAction(saveAction);
+	toolBar->addSeparator();
+	toolBar->addAction(mUndoAction);
+	toolBar->addAction(mRedoAction);
+	toolBar->addSeparator();
+	toolBar->addAction(mGridAction);
+	toolBar->addAction(mSelectAction);
+	toolBar->addAction(mCopyAction);
+	toolBar->addSeparator();
+	toolBar->addAction(mSelectAllAction);
+	toolBar->addAction(mClearAction);
+	toolBar->addSeparator();
+	toolBar->addAction(settingAction);
 
-	mUndoBtn = new QToolButton(iconUndo, M_QSTR(Message::TrC(MG_Undo)),
-					"", this, SLOT(Undo()), toolbar, "Undo");
-	mRedoBtn = new QToolButton(iconRedo, M_QSTR(Message::TrC(MG_Redo)),
-					"", this, SLOT(Redo()), toolbar, "Redo");
-	toolbar->addSeparator();
+	// メニューアクションの処理
+	connect(openAction, &QAction::triggered, this, &MainWindow::onOpen);
+	connect(saveAction, &QAction::triggered, this, &MainWindow::onSave);
+	connect(exitAction, &QAction::triggered, this, &MainWindow::onExit);
+	connect(mUndoAction, &QAction::triggered, this, &MainWindow::onUndo);
+	connect(mRedoAction, &QAction::triggered, this, &MainWindow::onRedo);
+	connect(mGridAction, &QAction::triggered, this, &MainWindow::onGrid);
+	connect(mCopyAction, &QAction::triggered, this, &MainWindow::onCopy);
+	connect(mSelectAction, &QAction::triggered, this, &MainWindow::onSelect);
+	connect(mSelectAllAction, &QAction::triggered, this, &MainWindow::onSelectAll);
+	connect(mClearAction, &QAction::triggered, this, &MainWindow::onClear);
+	connect(settingAction, &QAction::triggered, this, &MainWindow::onSetting);
 
-	mGridBtn = new QToolButton(iconGrid, M_QSTR(Message::TrC(MG_ShowGrid) + Message::TrC(MG_ON)),
-					"", this, SLOT(OnGridBtn()), toolbar, "Grid");
-	mGridBtn->setToggleButton(true);
-	mGridBtn->setOn(true);
-	mSelectBtn = new QToolButton(iconSelect, M_QSTR(Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(MG_OFF)),
-					"", this, SLOT(OnSelectMode()), toolbar, "Select");
-	mSelectBtn->setToggleButton(true);
-	mSelectBtn->setOn(false);
-	mCopyBtn = new QToolButton(iconCopy, M_QSTR(Message::TrC(MG_CopyMode) + Message::TrC(MG_OFF)),
-					"", this, SLOT(OnCopyMode()), toolbar, "Copy");
-	mCopyBtn->setToggleButton(true);
-	mCopyBtn->setEnabled(false);
+	QWidget *centralWidget = new QWidget(this);
+	setCentralWidget(centralWidget);
+	QHBoxLayout *topLayout = new QHBoxLayout;
+	QVBoxLayout *vBoxLayout = new QVBoxLayout;
+	QHBoxLayout *hBoxLayout = new QHBoxLayout;
 
-	toolbar->addSeparator();
-	mSelectAllBtn = new QToolButton(iconSelectAll, M_QSTR(Message::TrC(MG_SelectAll)), "",
-						this, SLOT(OnSelectAll()), toolbar, "SelectAll");
-	mSelectAllBtn->setEnabled(false);
-
-	mClearBtn = new QToolButton(iconClear, M_QSTR(Message::TrC(MG_Clear)),
-					"", this, SLOT(Clear()), toolbar, "Clear");
-	mClearBtn->setEnabled(false);
-	toolbar->addSeparator();
-
-	mSettingBtn = new QToolButton(iconSetup, M_QSTR(Message::TrC(MG_Setting)),
-					"", this, SLOT(Setting()), toolbar, "Setting");
-
-	QWidget *central = new QWidget(this);
-	setCentralWidget(central);
-	QHBoxLayout *topLayout = new QHBoxLayout(central, 10, 10);
-	QVBoxLayout *vBoxLayout = new QVBoxLayout(topLayout, 5);
-	QHBoxLayout *hBoxLayout = new QHBoxLayout(vBoxLayout, 5);
-
-	mCurPixmap = new QLabel(central);
-	mCurPixmap->setFixedWidth(32);
-	mCurPixmap->setFixedHeight(32);
+	// アイコンテーブル
+	mCurPixmap = new QLabel(centralWidget);
+	mCurPixmap->setFixedSize(32, 32);
+	mCurPixName = new QLabel(centralWidget);
+	mCurPixName->setFixedSize(150, 20);
 	hBoxLayout->addWidget(mCurPixmap);
-	mCurPixName = new QLabel(central);
-	mCurPixName->setFixedWidth(150);
-	mCurPixName->setFixedHeight(20);
 	hBoxLayout->addWidget(mCurPixName);
-
-	mIconTable = new IconTable(central, this);
+	mIconTable = new IconTable(centralWidget, this);
+	vBoxLayout->addLayout(hBoxLayout);
 	vBoxLayout->addWidget(mIconTable);
 
-	mMapTable = new MapTable(central, this);
+	// マップテーブル
+	mMapTable = new MapTable(centralWidget, this);
+	topLayout->addLayout(vBoxLayout);
 	topLayout->addWidget(mMapTable);
+	centralWidget->setLayout(topLayout);
+	SetEditBtnEnable();
 
-	QLabel *dmyLbl1 = new QLabel(central);
-	dmyLbl1->setFixedWidth(0);
-	topLayout->addWidget(dmyLbl1);
-	QLabel *dmyLbl2 = new QLabel(central);
-	dmyLbl2->setFixedWidth(0);
-	topLayout->addWidget(dmyLbl2);
-
-	// mIconTable->ClearAll();
-	statusBar()->message(M_QSTR(Message::TrC(MG_IconFileNotRegist)));
-
-	LoadMapFile();
-	SetUndoEnable(false);
-	SetRedoEnable(false);
+	mUndoAction->setEnabled(false);
+	mRedoAction->setEnabled(false);
+	mCopyAction->setEnabled(false);
 }
 
-void MainWindow::Open()
+void MainWindow::Initiate()
+{
+	LoadMapFile();
+}
+
+void MainWindow::onOpen()
 {
 	if (!ConfirmSave()) return;
 
-	QString fname = QFileDialog::getOpenFileName(
-                    mDataDir.data(), M_QSTR(Message::TrC(MG_MapDataFile)),
-                    this, "Open", M_QSTR(Message::TrC(MG_OpenMapFile)));
+	QString fname = QFileDialog::getOpenFileName(this,
+		 				M_QSTR(Message::TrC(MG_OpenMapFile)),
+						mDataDir.c_str(),
+						M_QSTR(Message::TrC(MG_MapDataFile)));
 	if (fname.isEmpty()) return;
 
-	string str = fname.local8Bit().data();
+	QTextCodec *codec = QTextCodec::codecForName("Shift-JIS");
+	QByteArray sjisBytes = codec->fromUnicode(fname);
+	string str(sjisBytes.constData(), sjisBytes.size());
 	int idx = str.rfind('/');
 	if (idx < 1) return;
 	mDataDir = str.substr(0, idx);
@@ -182,202 +183,140 @@ void MainWindow::Open()
 	LoadMapFile();
 }
 
-/*　保存　*/
-void MainWindow::Save()
+void MainWindow::onSave()
 {
 	WriteFile(mFileName);
 }
 
-/*　名前をつけて保存　*/
-bool MainWindow::SaveAs()
-{
-	return FALSE;
-}
-
-/*　終了　*/
-void MainWindow::Exit()
+void MainWindow::onExit()
 {
 	if (!ConfirmSave()) return;
-	qApp->quit();
+	close();
+}
+
+/*　元に戻す　*/
+void MainWindow::onUndo()
+{
+	if (!mMapTable->Undo()) {
+		mUndoAction->setEnabled(false);
+		mIsModified = false;
+		SetTitle();
+	}
+	mRedoAction->setEnabled(true);
+	SetEditBtnEnable();
+}
+
+/*　やり直す　*/
+void MainWindow::onRedo()
+{
+	if (!mMapTable->Redo()) {
+		mRedoAction->setEnabled(false);
+	}
+	mUndoAction->setEnabled(true);
+	mIsModified = true;
+	SetTitle();
+}
+
+void MainWindow::onGrid()
+{
+	bool onoff = (mMapTable->showGrid())? false : true;
+	mMapTable->SetDrawGrid(onoff);
+	int id = (onoff)? MG_ON : MG_OFF;
+	QString msg = M_QSTR(Message::TrC(MG_ShowGrid) + Message::TrC(id));
+	mGridAction->setText(msg);
+	mGridAction->setToolTip(msg);
+	statusBar()->showMessage(msg);
+}
+
+/*　コピーモード　*/
+void MainWindow::onCopy()
+{
+	bool onoff = (mMapTable->IsCopyMode())? false : true;
+	int id = (onoff)? MG_ON : MG_OFF;
+	QString msg = M_QSTR(Message::TrC(MG_CopyMode) + Message::TrC(id));
+	mCopyAction->setText(msg);
+	mCopyAction->setToolTip(msg);
+	statusBar()->showMessage(msg);
+	mMapTable->SetCopyMode(onoff);
+}
+
+/*　選択モード　*/
+void MainWindow::onSelect()
+{
+	if (!mMapTable) return;
+
+	bool onoff = (mSelectAction->isChecked())? false : true;
+	int id = (onoff)? MG_ON : MG_OFF;
+	QString msg = M_QSTR(Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(id));
+	mSelectAction->setText(msg);
+	mSelectAction->setToolTip(msg);
+	SetEditBtnEnable();
+	mMapTable->SetSelectMode(!onoff);
+
+	id = (onoff)? MG_InputMode : MG_SelectMode;
+	statusBar()->showMessage(M_QSTR(Message::TrC(id)));
+}
+
+/*　全て選択　*/
+void MainWindow::onSelectAll()
+{
+	mMapTable->SelectAll();
+}
+
+/*　クリア　*/
+void MainWindow::onClear()
+{
+	mMapTable->Clear();
+}
+
+void MainWindow::onSetting()
+{
+	SettingDlg *dlg = new SettingDlg(this);
+	const string &dir = mIconTable->GetDir();
+	int rowNum = mMapTable->GetRowNum(), colNum = mMapTable->GetColNum();
+	dlg->Init(dir, rowNum, colNum);
+	if (dlg->exec() != QDialog::Accepted) return;
+
+	string iconDir(dlg->GetIconDir().toUtf8().constData());
+	int imgCnt = mIconTable->Init(iconDir);
+	if (imgCnt == 0) {
+		mCurPixmap->setPixmap(QPixmap());
+		mCurPixName->setText("");
+		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotRegist)));
+		QMessageBox::critical(this, M_QSTR(Message::TrC(MG_Error)),
+			M_QSTR(Message::TrC(MG_ImageFileNotFound, iconDir.c_str())));
+	} else {
+		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileLoaded, imgCnt)), 3000);
+	}
+
+	rowNum = dlg->GetMapSizeRow();
+	colNum = dlg->GetMapSizeCol();
+	mMapTable->Init(rowNum, colNum);
+
+	mIsModified = true;
+	SetTitle();
 }
 
 bool MainWindow::ConfirmSave()
 {
 	if (!mIsModified) return true;
 
-	int ret = QMessageBox::question(this, M_QSTR(Message::TrC(MG_Confirm)),
-							M_QSTR(Message::TrC(MG_ConfirmSave)),
-							QMessageBox::Yes, QMessageBox::No, QMessageBox::Cancel);
-	if (ret == QMessageBox::Cancel) return false;
-	if (ret == QMessageBox::Yes) Save();
+	QMessageBox::StandardButton reply;
+	reply = QMessageBox::question(this, M_QSTR(Message::TrC(MG_Confirm)),
+								M_QSTR(Message::TrC(MG_ConfirmSave)),
+								QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+	if (reply == QMessageBox::Cancel) return false;
+	if (reply == QMessageBox::Yes) onSave();
 	return true;
 }
 
-/*　元に戻す　*/
-void MainWindow::Undo()
-{
-	if (!mMapTable->Undo()) {
-		mEditMenu->setItemEnabled(mMenuUndo, false);
-		mUndoBtn->setEnabled(false);
-		mIsModified = false;
-		SetTitle();
-	}
-	mEditMenu->setItemEnabled(mMenuRedo, true);
-	mRedoBtn->setEnabled(true);
-	SetEditBtnEnable();
-}
-
-/*　やり直す　*/
-void MainWindow::Redo()
-{
-	if (!mMapTable->Redo()) {
-		mEditMenu->setItemEnabled(mMenuRedo, false);
-		mRedoBtn->setEnabled(false);
-	}
-	mEditMenu->setItemEnabled(mMenuUndo, true);
-	mUndoBtn->setEnabled(true);
-	mIsModified = true;
-	SetTitle();
-}
-
-void MainWindow::SetUndoEnable(bool onoff)
-{
-	mEditMenu->setItemEnabled(mMenuUndo, onoff);
-	mUndoBtn->setEnabled(onoff);
-}
-	
-void MainWindow::SetRedoEnable(bool onoff)
-{
-	mEditMenu->setItemEnabled(mMenuRedo, onoff);
-	mRedoBtn->setEnabled(onoff);
-}
-	
 void MainWindow::SetTitle()
 {
 	string title = string(Message::TrC(MG_RPGMap_Editor)) + "  -  " + mFileName;
 	if (mIsModified) title += " *";
 	title += string("  [") + mDataDir + string("]");
 	// title = wkstr;
-	setCaption(M_QSTR(title));
-}
-
-/*　グリッド表示　*/
-void MainWindow::OnGridMenu()
-{
-	bool onoff = (mEditMenu->isItemChecked(mMenuGrid))? false : true;
-	mEditMenu->setItemChecked(mMenuGrid, onoff);
-	mGridBtn->setOn(onoff);
-	_OnGrid(onoff);
-}
-
-void MainWindow::OnGridBtn()
-{
-	bool onoff = mGridBtn->isOn();
-	mEditMenu->setItemChecked(mMenuGrid, onoff);
-	_OnGrid(onoff);
-}
-
-void MainWindow::_OnGrid(bool onoff)
-{
-	if (!mMapTable) return;
-	mMapTable->setShowGrid(onoff);
-	int id = (onoff)? MG_ON : MG_OFF;
-	string msg = Message::TrC(MG_ShowGrid) + Message::TrC(id);
-	QToolTip::add(mGridBtn, M_QSTR(msg));
-	mEditMenu->changeItem(mMenuGrid, M_QSTR(msg));
-	statusBar()->message(M_QSTR(msg));
-}
-
-/*　選択モード　*/
-void MainWindow::OnSelectMode()
-{
-	if (!mMapTable) return;
-
-	bool onoff = (mMapTable->IsSelectMode())? false : true;
-	mEditMenu->setItemChecked(mMenuSelect, onoff);
-	mSelectBtn->setOn(onoff);
-	mCurPixmap->setEnabled(!onoff);
-	mCurPixName->setEnabled(!onoff);
-	mIconTable->setEnabled(!onoff);
-	mMapTable->SetSelectMode(onoff);
-	// 選択モード終了時は、コピーモードもオフにする
-	if (!onoff && mCopyBtn->isOn()) {
-		mEditMenu->setItemChecked(mMenuCopy, false);
-		mCopyBtn->setOn(false);
-		mMapTable->SetCopyMode(false);
-	}
-
-	mEditMenu->setItemEnabled(mMenuSelectAll, onoff);
-	mSelectAllBtn->setEnabled(onoff);
-
-	int id = (onoff)? MG_ON : MG_OFF;
-	string msg = Message::TrC(MG_SelectMode) + Message::TrC(MG_COLON) + Message::TrC(id);
-	QToolTip::add(mSelectBtn, M_QSTR(msg));
-	mEditMenu->changeItem(mMenuSelect, M_QSTR(msg));
-	id = (onoff)? MG_SelectMode : MG_InputMode;
-	statusBar()->message(M_QSTR(Message::TrC(id)));
-}
-
-/*　コピーモード　*/
-void MainWindow::OnCopyMode()
-{
-	bool onoff = (mMapTable->IsCopyMode())? false : true;
-	mEditMenu->setItemChecked(mMenuCopy, onoff);
-	mCopyBtn->setOn(onoff);
-
-	int id = (mCopyBtn->isOn())? MG_ON : MG_OFF;
-	string msg = Message::TrC(MG_CopyMode) + Message::TrC(id);
-	mEditMenu->changeItem(mMenuCopy, M_QSTR(msg));
-	QToolTip::add(mCopyBtn, M_QSTR(msg));
-	statusBar()->message(M_QSTR(msg));
-	mMapTable->SetCopyMode(onoff);
-}
-
-/*　全て選択　*/
-void MainWindow::OnSelectAll()
-{
-	mMapTable->SelectAll();
-}
-
-/*　クリア　*/
-void MainWindow::Clear()
-{
-	mMapTable->Clear();
-}
-
-/*　設定　*/
-void MainWindow::Setting()
-{
-	SettingDlg *dlg = new SettingDlg(this);
-	int rowNum = mMapTable->GetRowNum(), colNum = mMapTable->GetColNum();
-	dlg->Init(mIconDir, rowNum, colNum);
-	if (dlg->exec() != QDialog::Accepted) return;
-
-	rowNum = dlg->GetMapSizeRow();
-	colNum = dlg->GetMapSizeCol();
-	mMapTable->Init(rowNum, colNum);
-	ChangeIconDir(dlg->GetIconDir().latin1());
-	mIsModified = true;
-	SetTitle();
-}
-
-void MainWindow::ChangeIconDir(const char *pIconDir, bool pMsgFlg)
-{
-	mIconDir = pIconDir;
-	int imgCnt = mIconTable->OpenIconFiles(mIconDir);
-	if (imgCnt == 0) {
-		mCurPixmap->setPixmap(QPixmap());
-		mCurPixName->setText("");
-		statusBar()->message(M_QSTR(Message::TrC(MG_IconFileNotRegist)));
-		QMessageBox mb(M_QSTR(Message::TrC(MG_Error)),
-			M_QSTR(Message::TrC(MG_ImageFileNotFound, pIconDir)),
-			QMessageBox::Critical, QMessageBox::Ok|QMessageBox::Default, 
-			QMessageBox::NoButton, QMessageBox::NoButton);
-		mb.exec();
-		mIconDir = "";
-	} else {
-		if (pMsgFlg) statusBar()->message(M_QSTR(Message::TrC(MG_IconFileLoaded, imgCnt)), 3000);
-	}
+	setWindowTitle(M_QSTR(title));
 }
 
 /*
@@ -385,14 +324,21 @@ void MainWindow::ChangeIconDir(const char *pIconDir, bool pMsgFlg)
 */
 int MainWindow::LoadMapFile()
 {
+#define L_DEFAULT_ICONNUM	50	// デフォルトのアイコン数
+
 	string fname = mDataDir + "/" + mFileName;
 	FILE *fp = fopen(fname.c_str(), "r");
-	if (!fp) return 0;
+	if (!fp) {
+		SetTitle();
+		return 0;
+	}
 
 	int rowNum = L_DEFALUT_MAPSIZE_ROW, colNum = L_DEFALUT_MAPSIZE_COL;
+	int iconFileLen = strlen(L_KEY_ICONFILE);
 	bool crFlg = false;
-	string key, val;
-	vector<int> mapData;
+	string key, val, iconDir;
+	vector<int> mapData, iconTable;
+	stringVector iconFiles(L_DEFAULT_ICONNUM);
 	char buf[4096];
 	while (fgets(buf, 4096, fp) != NULL) {
 		string str = buf;
@@ -408,38 +354,47 @@ int MainWindow::LoadMapFile()
 			val = trim(str);
 		}
 		int len = val.size();
-		crFlg = (val.substr(len-4, len-1) == L_CR)? true : false;
+		crFlg = (len > 3 && val.substr(len-4, len-1) == L_CR)? true : false;
 		if (crFlg) val = val.substr(0, len-5);
-		// printf("key = (%s) val = (%s)\n", key.c_str(), val.c_str());
 		if (key == L_KEY_ICONDIR) {
-			ChangeIconDir(val.c_str(), false);
+			iconDir = val;
+		} else if (key.substr(0, iconFileLen) == L_KEY_ICONFILE) {
+			string str = key.substr(iconFileLen, key.size()-iconFileLen);
+			int id = atoi(str.c_str())-1;
+			if (id >= 0) {
+				if (iconFiles.size() < id+1) iconFiles.resize(id+1);
+				iconFiles[id] = val;
+			}
+		} else if (key == L_KEY_ICONTABLE) {
+			ReadTableData(iconTable, val);
 		} else if (key == L_KEY_MAPSIZE) {
 			sscanf(val.c_str(), "%d %d", &rowNum, &colNum);
 		} else if (key == L_KEY_MAPDATA) {
-			ReadMapData(mapData, val);
+			ReadTableData(mapData, val);
 		}
 	}
 	fclose(fp);
+	mIconTable->Init(iconDir, &iconFiles, &iconTable);
 	mMapTable->Init(rowNum, colNum, &mapData);
 	mIsModified = false;
 	SetTitle();
-	statusBar()->message(M_QSTR(Message::TrC(MG_MapFileOpened, fname.c_str())), 3000);
+	statusBar()->showMessage(M_QSTR(Message::TrC(MG_MapFileOpened, fname.c_str())), 3000);
 	return 1;
 }
 
-void MainWindow::ReadMapData(vector<int> &pMadData, const string &pStr) const
+void MainWindow::ReadTableData(vector<int> &pData, const string &pStr) const
 {
 	// トークン分割
-    const char del = ',';
-    int idx = 0, last = pStr.find_first_of(del);
-    while (idx < pStr.size()) {
-        string subStr(pStr, idx, last-idx);
-        subStr = trim(subStr);
-        pMadData.push_back(atoi(subStr.c_str())-1);
-        idx = last + 1;
-        last = pStr.find_first_of(del, idx);
-        if (last == string::npos) last = pStr.size();
-    }
+	const char del = ',';
+	int idx = 0, last = pStr.find_first_of(del);
+	while (idx < pStr.size()) {
+		string subStr(pStr, idx, last-idx);
+		subStr = trim(subStr);
+		pData.push_back(atoi(subStr.c_str())-1);
+		idx = last + 1;
+		last = pStr.find_first_of(del, idx);
+		if (last == string::npos) last = pStr.size();
+	}
 }
 
 /*
@@ -450,11 +405,7 @@ int MainWindow::WriteFile(const string &pFileName)
 	FILE *fp = fopen(pFileName.c_str(), "w");
 	if (!fp) return 0;
 
-	fprintf(fp, "%s = %s\n", L_KEY_ICONDIR, mIconDir.c_str());
-	const stringVector &iconFiles = mIconTable->GetFiles();
-	for (int i = 0; i < iconFiles.size(); i++) {
-		fprintf(fp, "%s%d = %s\n", L_KEY_ICONFILE, i+1, iconFiles[i].c_str());
-	}
+	mIconTable->OutputFile(fp);
 	mMapTable->OutputFile(fp);
 	fclose(fp);
 	mIsModified = false;
@@ -469,53 +420,57 @@ bool MainWindow::GetPixmap(QPixmap &pPixmap, int pIconIdx) const
 
 void MainWindow::closeEvent(QCloseEvent *pEvent)
 {
-	Exit();
+	onExit();
 }
 
 void MainWindow::NotifyCurIconChanged()
 {
-	if (mIconDir.empty()) {
-		statusBar()->message(M_QSTR(Message::TrC(MG_IconFileNotRegist)));
+	const string &iconDir = mIconTable->GetDir();
+	if (iconDir.empty()) {
+		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotRegist)));
 		mMapTable->NotifyIconChanged();
 		return;
 	}
 
 	string iconnm = mIconTable->GetCurIconFileName();
-	string fname = (iconnm.empty())? "" : mIconDir + "/" + iconnm;
+	string fname = (iconnm.empty())? "" : iconDir + "/" + iconnm;
 	QPixmap pix(fname.c_str());
 	mCurPixmap->setPixmap(pix);
 	mCurPixName->setText((iconnm.empty())? M_QSTR(Message::TrC(MG_NotSelect)) : iconnm.c_str());
+
 	if (iconnm.empty()) {
 		mMapTable->NotifyIconChanged();
-		statusBar()->message(M_QSTR(Message::TrC(MG_IconFileNotSelected)));
+		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotSelected)));
 	} else {
 		int iconIdx = mIconTable->GetCurIndex();
 		mMapTable->NotifyIconChanged(iconIdx, mCurPixmap->pixmap());
-		statusBar()->message("");
+		statusBar()->showMessage("");
 	}
 }
 
 void MainWindow::NotifySelectChanged()
 {
-	bool isSelect = mMapTable->IsSelectZone();
-	mEditMenu->setItemEnabled(mMenuClear, isSelect);
-	mClearBtn->setEnabled(isSelect);
-	mEditMenu->setItemEnabled(mMenuCopy, isSelect);
-	mCopyBtn->setEnabled(isSelect);
+	SetEditBtnEnable();
 }
 
 void MainWindow::NotifyEdited()
 {
 	mIsModified = true;
 	SetTitle();
-	SetUndoEnable(true);
-	SetRedoEnable(false);
+	mUndoAction->setEnabled(true);
+	mRedoAction->setEnabled(false);
 	SetEditBtnEnable();
 }
 
 void MainWindow::SetEditBtnEnable()
 {
-	bool onoff = (mSelectBtn->isOn() && mMapTable->IsSelectZone())? true : false;
-	mEditMenu->setItemEnabled(mMenuClear, onoff);
-	mClearBtn->setEnabled(onoff);
+	bool selMode = mSelectAction->isChecked();
+	bool editFlg = (selMode && mMapTable->IsSelectZone())? true : false;
+	mSelectAllAction->setEnabled(selMode);
+	mCopyAction->setEnabled(editFlg);
+	mClearAction->setEnabled(editFlg);
+
+	mCurPixmap->setEnabled(!selMode);
+	mCurPixName->setEnabled(!selMode);
+	mIconTable->setEnabled(!selMode);
 }

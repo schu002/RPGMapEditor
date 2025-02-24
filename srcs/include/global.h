@@ -1,12 +1,34 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H 1
 
+#include <stdio.h>
+
+#include <string>
+#include <vector>
+#include <set>
+#include <map>
+#include <unordered_set>
+#include <unordered_map>
+#include <algorithm>
+using namespace std;
+
+typedef vector<string> stringVector;
+typedef unordered_set<string> stringSet;
+
 #define	L_OS_WINDOWS	1
 
 #if _MSC_VER >= 1300
 #define L_COMPILER_VSNET	1
 #else
 #define L_COMPILER_VC6		1
+#endif
+
+#define QT5 1
+
+#if	_DEBUG
+#define	L_DEBUG			1
+#else
+#define	L_DEBUG			0
 #endif
 
 /*

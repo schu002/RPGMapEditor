@@ -44,6 +44,8 @@ public:
 	bool operator == (const Zone &zone) const { return (mPnts[0] == zone[0] && mPnts[1] == zone[1]); }
 	bool operator != (const Zone &zone) const { return (mPnts[0] != zone[0] || mPnts[1] != zone[1]); }
 
+	void Dump(bool pRet = false) const;
+
 private:
 	Point mPnts[2];
 };

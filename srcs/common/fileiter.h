@@ -7,9 +7,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <algorithm>
-#include <string>
-using namespace std;
 
 #include "common/commonpack.h"
 

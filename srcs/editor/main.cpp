@@ -1,20 +1,19 @@
 #include "maindef.h"
-#include "qtpack.h"
-#include "qwindowsstyle.h"
 
-int main(int argc, char* argv[])
+#define L_MAPSIZE_ROW	30
+#define L_MAPSIZE_COL	30
+#define L_PIXSIZE	32
+
+int main(int argc, char * argv[])
 {
-	MyQApplication app(argc, argv);
+	QApplication app(argc, argv);
 	string curDir = FileUtil::GetCurDir();
 	string msgfile = curDir + "/mapeditor.hh";
 	if (!MessageControl::Load(msgfile)) return 0;
 
-	MainWindow *win = new MainWindow(curDir, Qt::WType_Dialog|Qt::WStyle_Minimize);
+	MainWindow *win = new MainWindow(curDir);
+	win->resize(1200, 800);
 	win->show();
-//	win->GetMapTable()->setFocus();
-//	win->resize(800, 500);
-	app.setMainWidget(win);
-	app.exec();
-
-    return 0;
+	win->Initiate();
+	return app.exec();
 }
