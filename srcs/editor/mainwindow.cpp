@@ -442,10 +442,16 @@ void MainWindow::NotifyCurIconChanged()
 		mMapTable->NotifyIconChanged();
 		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotSelected)));
 	} else {
-		int iconIdx = mIconTable->GetCurIndex();
+		int iconIdx = mIconTable->GetCurIconIdx();
 		mMapTable->NotifyIconChanged(iconIdx, mCurPixmap->pixmap());
 		statusBar()->showMessage("");
 	}
+}
+
+void MainWindow::NotifyIconEdited()
+{
+	mIsModified = true;
+	SetTitle();
 }
 
 void MainWindow::NotifySelectChanged()

@@ -20,6 +20,7 @@ public:
 
 	bool GetPixmap(QPixmap &pPixmap, int pIconIdx) const;
 	void NotifyCurIconChanged();
+	void NotifyIconEdited();
 	void NotifySelectChanged();
 	void NotifyEdited();
 
