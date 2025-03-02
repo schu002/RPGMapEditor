@@ -13,24 +13,24 @@ IconTable::IconTable(QWidget *pParent, MainWindow *pMainWin)
 	: QTableWidget(L_NUM_ROW, L_NUM_COL, pParent), mMainWin(pMainWin), mAttr(0)
 {
 	horizontalHeader()->setVisible(false);
-    verticalHeader()->setVisible(false); 
+	verticalHeader()->setVisible(false); 
 //	setReadOnly(true);
 	setDragEnabled(false);
 //	setSelectionMode(QTable::Single);
 //	setHScrollBarMode(QScrollView::AlwaysOff);
-	setFixedWidth(L_NUM_COL * L_PIXSIZE + 25);
-	// setEditTriggers(QAbstractItemView::NoEditTriggers);
-	setSelectionMode(QAbstractItemView::SingleSelection);
+	setFixedWidth(L_NUM_COL * (L_PIXSIZE+3) + 25);
+	setEditTriggers(QAbstractItemView::NoEditTriggers);
+	setSelectionMode(QAbstractItemView::ContiguousSelection);
 	setStyleSheet(
 		"QTableView::item { border: 0.1px dotted gray; }" // グリッド線
-		"QTableView::item:selected { background: #B4D4FF; }" // 選択時の色（デフォルトの青）
+		"QTableView::item:selected { background: orange; }" // 選択時の色（デフォルトの青）
 	);
 
 	for (int r = 0; r < L_NUM_ROW; r++) {
-		setRowHeight(r, L_PIXSIZE);
+		setRowHeight(r, L_PIXSIZE+6);
 	}
 	for (int c = 0; c < L_NUM_COL; c++) {
-		setColumnWidth(c, L_PIXSIZE);
+		setColumnWidth(c, L_PIXSIZE+6);
 	}
 
 	connect(this, &QTableWidget::currentCellChanged, this, &IconTable::slot_OnCurrentChanged);
@@ -107,10 +107,10 @@ int IconTable::Init(const string &pDir, const stringVector *pFiles, const vector
 			QLabel *label = new QLabel(this);
 			if (!fname.empty()) {
 				label->setPixmap(pixmap.scaled(L_PIXSIZE, L_PIXSIZE, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-	            label->setAlignment(Qt::AlignCenter);
-	            mID2Table[iconIdx] = idx;
+		        label->setAlignment(Qt::AlignCenter);
+		        mID2Table[iconIdx] = idx;
 			}
-            setCellWidget(r, c, label);
+		    setCellWidget(r, c, label);
 		}
 	}
 	setCurrentCell(0, 0);
@@ -141,7 +141,7 @@ void IconTable::Clear()
 	mTable2ID.clear();
 }
 
-bool IconTable::eventFilter(QObject *obj, QEvent *e)
+/* bool IconTable::eventFilter(QObject *obj, QEvent *e)
 {
 	if (obj != viewport()) return false;
 	if (e->type() != QEvent::MouseButtonPress &&
@@ -165,34 +165,104 @@ bool IconTable::eventFilter(QObject *obj, QEvent *e)
 		mAttr &= ~(L_Attr_MousePress|L_Attr_Swap);
 	}
 	return false;
+} */
+
+void IconTable::Move(int pVec)
+{
+	Zone selZone;
+	if (!GetSelectZone(selZone)) return;
+	int curRow = currentRow(), curCol = currentColumn();
+	int rowNum = rowCount(), colNum = columnCount();
+	int selRowNum = selZone.rows(), selColNum = selZone.cols();
+
+	int ofsRow = 0, ofsCol = 0;
+	if (pVec == L_VEC_UP) {
+		ofsRow = (selZone[0].r > 0)? -1 : rowNum-selRowNum;
+	} else if (pVec == L_VEC_DOWN) {
+		ofsRow = (selZone[1].r < rowNum-1)? 1 : selRowNum-rowNum;
+	} else if (pVec == L_VEC_LEFT) {
+		ofsCol = (selZone[0].c > 0)? -1 : colNum-selColNum;
+	} else if (pVec == L_VEC_RIGHT) {
+		ofsCol = (selZone[1].c < colNum-1)? 1 : selColNum-colNum;
+	}
+	if (ofsRow == 0 && ofsCol == 0) return;
+
+	int incRow = (ofsRow > 0)? -1 : 1;
+	int incCol = (ofsCol > 0)? -1 : 1;
+	int sRow = (incRow > 0)? selZone[0].r : selZone[1].r;
+	int eRow = (incRow > 0)? selZone[1].r : selZone[0].r;
+	int sCol = (incCol > 0)? selZone[0].c : selZone[1].c;
+	int eCol = (incCol > 0)? selZone[1].c : selZone[0].c;
+	for (int r = sRow; r != eRow+incRow; r += incRow) {
+		for (int c = sCol; c != eCol+incCol; c += incCol) {
+			moveOne(r, c, ofsRow, ofsCol);
+		}
+	}
+	selZone.move(ofsRow, ofsCol);
+	setCurrentCell(curRow+ofsRow, curCol+ofsCol);
+	QTableWidgetSelectionRange range(selZone[0].r, selZone[0].c, selZone[1].r, selZone[1].c);
+	clearSelection();
+	setRangeSelected(range, true);
 }
 
-void IconTable::slot_OnCurrentChanged(int row, int col)
+void IconTable::moveOne(int row1, int col1, int ofsRow, int ofsCol)
 {
-	if ((mAttr & L_Attr_MousePress) == 0) return;
-	if (mMovePnt.empty()) return;
-	if (mMovePnt.r == row && mMovePnt.c == col) return;
-	// printf("current (%d %d)\n", row, col);
-
-	QLabel *label1 = qobject_cast<QLabel *>(cellWidget(mMovePnt.r, mMovePnt.c));
-	QLabel *label2 = qobject_cast<QLabel *>(cellWidget(row, col));
+	int row2 = row1+ofsRow, col2 = col1+ofsCol;
+	QLabel *label1 = qobject_cast<QLabel *>(cellWidget(row1, col1));
+	QLabel *label2 = qobject_cast<QLabel *>(cellWidget(row2, col2));
 	QPixmap pix1 = (label1)? label1->pixmap(Qt::ReturnByValue) : QPixmap("");
 	QPixmap pix2 = (label2)? label2->pixmap(Qt::ReturnByValue) : QPixmap("");
 	// mMovePntと移動先のPixmapを交換する
 	if (label2) label2->setPixmap(pix1);
 	if (label1) label1->setPixmap(pix2);
 
-	int idx1 = mMovePnt.r * columnCount() + mMovePnt.c;
-	int idx2 = row * columnCount() + col;
+	int idx1 = row1 * columnCount() + col1;
+	int idx2 = row2 * columnCount() + col2;
 	int iconIdx1 = mTable2ID[idx1];
 	int iconIdx2 = mTable2ID[idx2];
 	if (iconIdx1 >= 0) mID2Table[iconIdx1] = idx2;
 	if (iconIdx2 >= 0) mID2Table[iconIdx2] = idx1;
 	mTable2ID[idx1] = iconIdx2;
 	mTable2ID[idx2] = iconIdx1;
+}
 
-	mMovePnt.init(row, col);
-	mAttr |= L_Attr_Swap;
+int IconTable::GetSelectRowNum() const
+{
+	QList<QTableWidgetSelectionRange> ranges = selectedRanges();
+	for (const QTableWidgetSelectionRange &range : ranges) {
+		return range.bottomRow() - range.topRow() + 1;
+	}
+	return 0;
+}
+
+int IconTable::GetSelectColNum() const
+{
+	QList<QTableWidgetSelectionRange> ranges = selectedRanges();
+	for (const QTableWidgetSelectionRange &range : ranges) {
+		return range.rightColumn() - range.leftColumn() + 1;
+	}
+	return 0;
+}
+
+bool IconTable::GetSelectZone(Zone &zone) const
+{
+	QList<QTableWidgetSelectionRange> ranges = selectedRanges();
+	for (const QTableWidgetSelectionRange &range : ranges) {
+		zone[0].r = range.topRow();
+		zone[1].r = range.bottomRow();
+		zone[0].c = range.leftColumn();
+		zone[1].c = range.rightColumn();
+		return true;
+	}
+	zone.init();
+	return false;
+}
+
+void IconTable::slot_OnCurrentChanged(int row, int col)
+{
+	Zone selZone;
+	GetSelectZone(selZone);
+	mMainWin->NotifyCurIconChanged();
 }
 
 int IconTable::GetCurIconIdx() const
@@ -220,5 +290,52 @@ bool IconTable::GetPixmap(QPixmap &pPixmap, int pIconIdx) const
 	QLabel *label = qobject_cast<QLabel*>(cellWidget(r, c));
 	if (!label) return false;
 	pPixmap = label->pixmap(Qt::ReturnByValue);
+	return true;
+}
+
+bool IconTable::GetCurPixmap(QPixmap &pPixmap) const
+{
+	int iconIdx = GetCurIconIdx();
+	return GetPixmap(pPixmap, iconIdx);
+}
+
+bool IconTable::GetCurPixmap(vector<QPixmap> &pPixmaps) const
+{
+	Zone selZone;
+	if (!GetSelectZone(selZone)) {
+		pPixmaps.clear();
+		return false;
+	}
+
+	int cnt = 0;
+	pPixmaps.resize(selZone.rows() * selZone.cols());
+	for (int r = selZone[0].r; r <= selZone[1].r; r++) {
+		for (int c = selZone[0].c; c <= selZone[1].c; c++) {
+			QLabel *label = qobject_cast<QLabel*>(cellWidget(r, c));
+			pPixmaps[cnt++] = (label)? label->pixmap(Qt::ReturnByValue) : QPixmap("");
+		}
+	}
+	return true;
+}
+
+bool IconTable::GetCurPixmap(vector<SelectInfo> &pIconList) const
+{
+	Zone selZone;
+	if (!GetSelectZone(selZone)) {
+		pIconList.clear();
+		return false;
+	}
+
+	int cnt = 0;
+	pIconList.resize(selZone.rows() * selZone.cols());
+	for (int r = selZone[0].r; r <= selZone[1].r; r++) {
+		for (int c = selZone[0].c; c <= selZone[1].c; c++) {
+			SelectInfo &selInfo = pIconList[cnt++];
+			int idx = r * columnCount() + c;
+			selInfo.mIconIdx = (idx >= 0 && idx < mTable2ID.size())? mTable2ID[idx] : -1;
+			QLabel *label = qobject_cast<QLabel*>(cellWidget(r, c));
+			selInfo.mPixmap = (label)? label->pixmap(Qt::ReturnByValue) : QPixmap("");
+		}
+	}
 	return true;
 }

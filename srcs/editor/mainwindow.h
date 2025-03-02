@@ -19,6 +19,7 @@ public:
 	MapTable * GetMapTable() { return mMapTable; }
 
 	bool GetPixmap(QPixmap &pPixmap, int pIconIdx) const;
+	bool GetCurPixmap(QPixmap &pPixmap) const;
 	void NotifyCurIconChanged();
 	void NotifyIconEdited();
 	void NotifySelectChanged();
@@ -36,6 +37,10 @@ private slots:
 	void onSelectAll();
 	void onClear();
 	void onSetting();
+	void onUp();
+	void onDown();
+	void onLeft();
+	void onRight();
 
 private:
 	bool ConfirmSave();
@@ -60,8 +65,6 @@ private:
 	QAction *mUndoAction;
 	QAction *mRedoAction;
 
-	QLabel *mCurPixmap;
-	QLabel *mCurPixName;
 	IconTable *mIconTable;
 	MapTable *mMapTable;
 	bool mIsModified;

@@ -121,6 +121,7 @@
 #include <QtWidgets/QFontDialog>
 #include <QtWidgets/QDateTimeEdit>
 #include <QtWidgets/QCompleter>
+#include <QtWidgets/QStyledItemDelegate>
 //#include <QtWidgets/Qdebug.h>
 #include <QtCore/QUrlQuery>
 #include <QtQuick/QQuickImageProvider>
@@ -145,10 +146,10 @@
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonValue>
 #include <QtCore/QTextCodec>
-#include <QtWebChannel/QWebChannel>
-#include <QtWebChannel/QWebChannelAbstractTransport>
-#include <QtWebSockets/QWebSocket>
-#include <QtWebSockets/QWebSocketServer>
+// #include <QtWebChannel/QWebChannel>
+// #include <QtWebChannel/QWebChannelAbstractTransport>
+// #include <QtWebSockets/QWebSocket>
+// #include <QtWebSockets/QWebSocketServer>
 /// Add 180810
 
 //

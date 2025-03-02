@@ -37,6 +37,8 @@ public:
 	void merge(int row, int col);
 	void merge(const Zone &zone);
 	void move(int row, int col);
+	int rows() const { return (mPnts[0].r < 0)? 0 : mPnts[1].r-mPnts[0].r+1; }
+	int cols() const { return (mPnts[0].c < 0)? 0 : mPnts[1].c-mPnts[0].c+1; }
 
 	Point & operator [](int i) { return mPnts[i]; }
 	const Point & operator [](int i) const { return mPnts[i]; }

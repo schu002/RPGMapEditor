@@ -51,6 +51,10 @@ MainWindow::MainWindow(const string &pCurDir)
 	QIcon iconSelectAll("./lib/selectall.png");
 	QIcon iconGrid("./lib/grid.png");
 	QIcon iconSetup("./lib/setup.png");
+	QIcon iconUp("./lib/up.png");
+	QIcon iconDown("./lib/down.png");
+	QIcon iconLeft("./lib/left.png");
+	QIcon iconRight("./lib/right.png");
 
 	// ウィンドウのタイトル設定
 	setWindowTitle(M_QSTR(Message::TrC(MG_RPGMap_Editor)));
@@ -135,19 +139,34 @@ MainWindow::MainWindow(const string &pCurDir)
 	QVBoxLayout *vBoxLayout = new QVBoxLayout;
 	QHBoxLayout *hBoxLayout = new QHBoxLayout;
 
+	// 移動ボタン
+	QLabel *dmyLbl = new QLabel(centralWidget);
+	dmyLbl->setFixedSize(70, 20);
+	QPushButton *upBtn = new QPushButton(iconUp, "", centralWidget);
+	QPushButton *downBtn = new QPushButton(iconDown, "", centralWidget);
+	QPushButton *leftBtn = new QPushButton(iconLeft, "", centralWidget);
+	QPushButton *rightBtn = new QPushButton(iconRight, "", centralWidget);
+	upBtn->setFixedSize(24, 24);
+	downBtn->setFixedSize(24, 24);
+	leftBtn->setFixedSize(24, 24);
+	rightBtn->setFixedSize(24, 24);
+	hBoxLayout->addWidget(dmyLbl);
+	hBoxLayout->addWidget(upBtn);
+	hBoxLayout->addWidget(downBtn);
+	hBoxLayout->addWidget(leftBtn);
+	hBoxLayout->addWidget(rightBtn);
+	QObject::connect(upBtn, &QPushButton::clicked, this, &MainWindow::onUp);
+	QObject::connect(downBtn, &QPushButton::clicked, this, &MainWindow::onDown);
+	QObject::connect(leftBtn, &QPushButton::clicked, this, &MainWindow::onLeft);
+	QObject::connect(rightBtn, &QPushButton::clicked, this, &MainWindow::onRight);
+
 	// アイコンテーブル
-	mCurPixmap = new QLabel(centralWidget);
-	mCurPixmap->setFixedSize(32, 32);
-	mCurPixName = new QLabel(centralWidget);
-	mCurPixName->setFixedSize(150, 20);
-	hBoxLayout->addWidget(mCurPixmap);
-	hBoxLayout->addWidget(mCurPixName);
 	mIconTable = new IconTable(centralWidget, this);
 	vBoxLayout->addLayout(hBoxLayout);
 	vBoxLayout->addWidget(mIconTable);
 
 	// マップテーブル
-	mMapTable = new MapTable(centralWidget, this);
+	mMapTable = new MapTable(centralWidget, this, mIconTable);
 	topLayout->addLayout(vBoxLayout);
 	topLayout->addWidget(mMapTable);
 	centralWidget->setLayout(topLayout);
@@ -156,11 +175,6 @@ MainWindow::MainWindow(const string &pCurDir)
 	mUndoAction->setEnabled(false);
 	mRedoAction->setEnabled(false);
 	mCopyAction->setEnabled(false);
-}
-
-void MainWindow::Initiate()
-{
-	LoadMapFile();
 }
 
 void MainWindow::onOpen()
@@ -269,6 +283,7 @@ void MainWindow::onClear()
 	mMapTable->Clear();
 }
 
+/*  設定  */
 void MainWindow::onSetting()
 {
 	SettingDlg *dlg = new SettingDlg(this);
@@ -280,8 +295,6 @@ void MainWindow::onSetting()
 	string iconDir(dlg->GetIconDir().toUtf8().constData());
 	int imgCnt = mIconTable->Init(iconDir);
 	if (imgCnt == 0) {
-		mCurPixmap->setPixmap(QPixmap());
-		mCurPixName->setText("");
 		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotRegist)));
 		QMessageBox::critical(this, M_QSTR(Message::TrC(MG_Error)),
 			M_QSTR(Message::TrC(MG_ImageFileNotFound, iconDir.c_str())));
@@ -295,6 +308,31 @@ void MainWindow::onSetting()
 
 	mIsModified = true;
 	SetTitle();
+}
+
+void MainWindow::onUp()
+{
+	mIconTable->Move(L_VEC_UP);
+}
+
+void MainWindow::onDown()
+{
+	mIconTable->Move(L_VEC_DOWN);
+}
+
+void MainWindow::onLeft()
+{
+	mIconTable->Move(L_VEC_LEFT);
+}
+
+void MainWindow::onRight()
+{
+	mIconTable->Move(L_VEC_RIGHT);
+}
+
+void MainWindow::Initiate()
+{
+	LoadMapFile();
 }
 
 bool MainWindow::ConfirmSave()
@@ -418,6 +456,11 @@ bool MainWindow::GetPixmap(QPixmap &pPixmap, int pIconIdx) const
 	return mIconTable->GetPixmap(pPixmap, pIconIdx);
 }
 
+bool MainWindow::GetCurPixmap(QPixmap &pPixmap) const
+{
+	return mIconTable->GetCurPixmap(pPixmap);
+}
+
 void MainWindow::closeEvent(QCloseEvent *pEvent)
 {
 	onExit();
@@ -433,18 +476,12 @@ void MainWindow::NotifyCurIconChanged()
 	}
 
 	string iconnm = mIconTable->GetCurIconFileName();
-	string fname = (iconnm.empty())? "" : iconDir + "/" + iconnm;
-	QPixmap pix(fname.c_str());
-	mCurPixmap->setPixmap(pix);
-	mCurPixName->setText((iconnm.empty())? M_QSTR(Message::TrC(MG_NotSelect)) : iconnm.c_str());
-
 	if (iconnm.empty()) {
 		mMapTable->NotifyIconChanged();
 		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotSelected)));
 	} else {
-		int iconIdx = mIconTable->GetCurIconIdx();
-		mMapTable->NotifyIconChanged(iconIdx, mCurPixmap->pixmap());
-		statusBar()->showMessage("");
+		mMapTable->NotifyIconChanged();
+		statusBar()->showMessage(iconnm.c_str());
 	}
 }
 
@@ -475,8 +512,5 @@ void MainWindow::SetEditBtnEnable()
 	mSelectAllAction->setEnabled(selMode);
 	mCopyAction->setEnabled(editFlg);
 	mClearAction->setEnabled(editFlg);
-
-	mCurPixmap->setEnabled(!selMode);
-	mCurPixName->setEnabled(!selMode);
 	mIconTable->setEnabled(!selMode);
 }

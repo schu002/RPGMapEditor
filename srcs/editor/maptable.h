@@ -8,6 +8,7 @@
 
 
 class MainWindow;
+class IconTable;
 
 class MapTable : public QTableWidget
 {
@@ -23,7 +24,7 @@ private:
 	};
 
 public:
-	MapTable(QWidget *pParent, MainWindow *pMainWin, int pRowNum = 0, int pColNum = 0);
+	MapTable(QWidget *pParent, MainWindow *pMainWin, IconTable *pIconTable, int pRowNum = 0, int pColNum = 0);
 
 	void Init(int pRowNum, int pColNum, vector<int> *pData = NULL,
 			const Zone *pSelZone = NULL, const Point *pCurPos = NULL,
@@ -46,7 +47,7 @@ public:
 	bool IsSelectZone() const { return ((mAttr & L_Attr_SelectMode) && !mSelZone.empty())? true : false; }
 	bool IsSelectAll() const;
 	bool IsCopyMode() const { return (mAttr & L_Attr_CopyMode)? true : false; }
-	void NotifyIconChanged(int idx = -1, const QPixmap *pixmap = NULL);
+	void NotifyIconChanged();
 
 public slots:
 	void slot_OnPressed(int row, int col);
@@ -55,7 +56,9 @@ public slots:
 private:
 	bool SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect = false, bool pIsUpdate = true);
 	void SetPixmap(int row, int col, const QPixmap &pixmap, int pShowFlg = -1);
-	void SetPixmap(const Zone &pZone, const QPixmap &pPixmap, int pShowFlg = -1);
+	// void SetPixmap(const Zone &pZone, const QPixmap &pPixmap, int pShowFlg = -1);
+	const SelectInfo * GetIconInfo(int row, int col) const;
+	void DrawPixmapSelZone();
 	void ResetSelZonePixmap(const Zone *pZone);
 	void ChangeSize(int pRowNum, int pColNum);
 	void FinalizeInput();
@@ -72,14 +75,15 @@ private:
 	int mAttr;
 	int mCurIconIdx;
 	int mRowNum, mColNum;
-	const QPixmap *mCurPixmap;
 	Point mPressPnt;	// マウスを押した位置
 	Point mMovePnt;		// 移動開始位置
-	Zone mSelZone;
+	Zone mSelZone, mIconZone;
 	vector<int>	mData;
+	vector<SelectInfo>	mIconList;
 	JournalStack mUndoStack;
 	JournalStack mRedoStack;
 	MainWindow *mMainWin;
+	IconTable *mIconTable;
 	mutable QPixmap mTempPixmap;
 };
 

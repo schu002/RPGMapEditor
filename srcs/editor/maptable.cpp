@@ -6,9 +6,8 @@
 #define L_KEY_MAPDATA	"MapData"
 #define L_CR			"<cr>"
 
-MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, int pRowNum, int pColNum)
- :	QTableWidget(pParent), mMainWin(pMainWin), mRowNum(pRowNum), mColNum(pColNum), mAttr(0),
-	mCurPixmap(NULL), mCurIconIdx(-1)
+MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, IconTable *pIconTable, int pRowNum, int pColNum)
+ :	QTableWidget(pParent), mMainWin(pMainWin), mIconTable(pIconTable), mRowNum(pRowNum), mColNum(pColNum), mAttr(0)
 {
 	if (mRowNum <= 0) mRowNum = L_DEFALUT_MAPSIZE_ROW;
 	if (mColNum <= 0) mColNum = L_DEFALUT_MAPSIZE_COL;
@@ -163,10 +162,10 @@ void MapTable::SetCopyMode(bool onoff)
 	}
 }
 
-void MapTable::NotifyIconChanged(int idx, const QPixmap *pixmap)
+void MapTable::NotifyIconChanged()
 {
-	mCurIconIdx = idx;
-	mCurPixmap = pixmap;
+	mIconTable->GetSelectZone(mIconZone);
+	mIconTable->GetCurPixmap(mIconList);
 }
 
 int MapTable::GetIconIdx(int row, int col) const
@@ -176,6 +175,14 @@ int MapTable::GetIconIdx(int row, int col) const
 
 	int idx = row * mColNum + col;
 	return mData[idx];
+}
+
+const SelectInfo * MapTable::GetIconInfo(int row, int col) const
+{
+	int iconRow = (row-mSelZone[0].r) % mIconZone.rows();
+	int iconCol = (col-mSelZone[0].c) % mIconZone.cols();
+	int idx = iconRow * mIconZone.cols() + iconCol;
+	return (idx >= 0 && idx < mIconList.size())? &mIconList[idx] : NULL;
 }
 
 bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect, bool pIsUpdate)
@@ -227,13 +234,27 @@ void MapTable::SetPixmap(int row, int col, const QPixmap &pixmap, int pShowFlg)
 	}
 }
 
-void MapTable::SetPixmap(const Zone &pZone, const QPixmap &pPixmap, int pShowFlg)
+/* void MapTable::SetPixmap(const Zone &pZone, const QPixmap &pPixmap, int pShowFlg)
 {
 	if (pZone.empty()) return;
 
 	for (int r = pZone[0].r; r <= pZone[1].r; r++) {
 		for (int c = pZone[0].c; c <= pZone[1].c; c++) {
 			SetPixmap(r, c, pPixmap, pShowFlg);
+		}
+	}
+} */
+
+void MapTable::DrawPixmapSelZone()
+{
+	if (mSelZone.empty() || mIconZone.empty()) return;
+
+	int rowNum = M_MAX(mSelZone.rows(), mIconZone.rows());
+	int colNum = M_MAX(mSelZone.cols(), mIconZone.cols());
+	for (int r = mSelZone[0].r; r < mSelZone[0].r+rowNum; r++) {
+		for (int c = mSelZone[0].c; c < mSelZone[0].c+colNum; c++) {
+			const SelectInfo *iconInfo = GetIconInfo(r, c);
+			if (iconInfo) SetPixmap(r, c, iconInfo->mPixmap, true);
 		}
 	}
 }
@@ -430,8 +451,7 @@ void MapTable::slot_OnPressed(int row, int col)
 		Select();
 	} else {
 		mSelZone.init(mPressPnt);
-		int showFlg = (mCurIconIdx < 0)? 0 : 1;
-		SetPixmap(row, col, (mCurPixmap)? *mCurPixmap : QPixmap(""), showFlg);
+		DrawPixmapSelZone();
 	}
 }
 
@@ -455,22 +475,24 @@ void MapTable::slot_OnCurrentChanged(int row, int col, int preRow, int preCol)
 	if (mAttr & L_Attr_SelectMode) {
 		Select();
 	} else {
-		int showFlg = (mCurIconIdx < 0)? 0 : 1;
-		SetPixmap(mSelZone, (mCurPixmap)? *mCurPixmap : QPixmap(""), showFlg);
+		DrawPixmapSelZone();
 	}
 }
 
 // “ü—Í‚ðŠm’è‚·‚é
 void MapTable::FinalizeInput()
 {
-	if (mSelZone.empty()) return;
+	if (mSelZone.empty() || mIconZone.empty()) return;
 
 	AddUndo(L_OPE_INPUT);
 
-	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
-		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
+	int rowNum = M_MAX(mSelZone.rows(), mIconZone.rows());
+	int colNum = M_MAX(mSelZone.cols(), mIconZone.cols());
+	for (int r = mSelZone[0].r; r < mSelZone[0].r+rowNum; r++) {
+		for (int c = mSelZone[0].c; c < mSelZone[0].c+colNum; c++) {
+			const SelectInfo *iconInfo = GetIconInfo(r, c);
 			int idx = r * mColNum + c;
-			mData[idx] = mCurIconIdx;
+			mData[idx] = (iconInfo)? iconInfo->mIconIdx : -1;
 		}
 	}
 	mSelZone.init();
