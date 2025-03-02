@@ -7,12 +7,12 @@
 #define L_CR			"<cr>"
 
 MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, IconTable *pIconTable, int pRowNum, int pColNum)
- :	QTableWidget(pParent), mMainWin(pMainWin), mIconTable(pIconTable), mRowNum(pRowNum), mColNum(pColNum), mAttr(0)
+ :	QTableWidget(pParent), mMainWin(pMainWin), mIconTable(pIconTable), mAttr(0)
 {
-	if (mRowNum <= 0) mRowNum = L_DEFALUT_MAPSIZE_ROW;
-	if (mColNum <= 0) mColNum = L_DEFALUT_MAPSIZE_COL;
-	setRowCount(mRowNum);
-	setColumnCount(mColNum);
+	if (pRowNum <= 0) pRowNum = L_DEFALUT_MAPSIZE_ROW;
+	if (pColNum <= 0) pColNum = L_DEFALUT_MAPSIZE_COL;
+	setRowCount(pRowNum);
+	setColumnCount(pColNum);
 	setEditTriggers(QAbstractItemView::NoEditTriggers); // 編集不可にする
 	setSelectionMode(QAbstractItemView::NoSelection);
 	setStyleSheet("QTableView::item:selected { background: #B4D4FF; }"); // 選択時の色（デフォルトの青）
@@ -33,12 +33,12 @@ MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, IconTable *pIconTable
 //	hHeader->setStyleSheet("QHeaderView::section { border: none; background: whitesmoke; padding: 0px; }");
 //	vHeader->setStyleSheet("QHeaderView::section { border: none; background: whitesmoke; padding: 0px; }");
 
-	for (int r = 0; r < mRowNum; r++) setRowHeight(r, L_PIXSIZE);
-	for (int c = 0; c < mColNum; c++) setColumnWidth(c, L_PIXSIZE);
+	for (int r = 0; r < pRowNum; r++) setRowHeight(r, L_PIXSIZE);
+	for (int c = 0; c < pColNum; c++) setColumnWidth(c, L_PIXSIZE);
 
 	connect(this, SIGNAL(cellPressed(int,int)), this, SLOT(slot_OnPressed(int,int)));
 	connect(this, SIGNAL(currentCellChanged(int,int,int,int)), this, SLOT(slot_OnCurrentChanged(int,int,int,int)));
-	mData.resize(mRowNum * mColNum);
+	mData.resize(pRowNum * pColNum);
 	fill(mData.begin(), mData.end(), -1);
 	viewport()->installEventFilter(this);
 }
@@ -53,13 +53,13 @@ void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
 		}
 		bool selFlg1 = false, selFlg2 = false;
 		QPixmap pix;
-		for (int r = 0; r < mRowNum; r++) {
-			for (int c = 0; c < mColNum; c++) {
+		for (int r = 0; r < pRowNum; r++) {
+			for (int c = 0; c < pColNum; c++) {
 				if (pIsSelect && (mAttr & L_Attr_SelectMode)) {
 					selFlg1 = (pSelZone && pSelZone->contains(r, c))? true : false;
 					selFlg2 = mSelZone.contains(r, c);
 				}
-				int idx = r * mColNum + c;
+				int idx = r * pColNum + c;
 				if (mData[idx] == (*pData)[idx] && !selFlg1 && !selFlg2) continue;
 				mData[idx] = (*pData)[idx];
 
@@ -77,14 +77,15 @@ void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
 		}
 		if (pCurPos && !pCurPos->empty()) setCurrentCell(pCurPos->r, pCurPos->c);
 	} else {
-		if (mRowNum == pRowNum && mColNum == pColNum) return;
+		int rowNum = rowCount(), colNum = columnCount();
+		if (rowNum == pRowNum && colNum == pColNum) return;
 
 		const vector<int> oldData(mData);
 		for (int r = 0; r < pRowNum; r++) {
 			for (int c = 0; c < pColNum; c++) {
 				int idx1 = r * pColNum + c;
-				int idx2 = r * mColNum + c;
-				mData[idx1] = (r < mRowNum && c < mColNum)? oldData[idx2] : -1;
+				int idx2 = r * colNum + c;
+				mData[idx1] = (r < rowNum && c < colNum)? oldData[idx2] : -1;
 			}
 		}
 
@@ -96,40 +97,65 @@ void MapTable::OutputFile(FILE *fp)
 {
 	FinalizeMove();
 
-	fprintf(fp, "%s = %d %d\n", L_KEY_MAPSIZE, mRowNum, mColNum);
+	int rowNum = rowCount(), colNum = columnCount();
+	fprintf(fp, "%s = %d %d\n", L_KEY_MAPSIZE, rowNum, colNum);
 	fprintf(fp, "%s =", L_KEY_MAPDATA);
-	for (int r = 0; r < mRowNum; r++) {
+	for (int r = 0; r < rowNum; r++) {
 		if (r > 0) fprintf(fp, "\t");
-		for (int c = 0; c < mColNum; c++) {
+		for (int c = 0; c < colNum; c++) {
 			fprintf(fp, "%3d,", GetIconIdx(r, c)+1);
 		}
-		if (r < mRowNum-1) fprintf(fp, "%s", L_CR);
+		if (r < rowNum-1) fprintf(fp, "%s", L_CR);
 		fprintf(fp, "\n");
 	}
 }
 
+bool MapTable::ExportFile(const QString &pFileName)
+{
+	if (pFileName.isEmpty()) return false;
+
+	int rowNum = rowCount(), colNum = columnCount();
+	QImage finalImage(L_PIXSIZE*colNum, L_PIXSIZE*rowNum, QImage::Format_ARGB32);
+    finalImage.fill(Qt::white);
+    QPainter painter(&finalImage);
+
+	for (int r = 0; r < rowNum; r++) {
+		for (int c = 0; c < colNum; c++) {
+			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
+			QPixmap pixmap = (label && label->pixmap())? *label->pixmap() : QPixmap();
+			// 画像を適切な位置に配置
+            int x = c * L_PIXSIZE, y = r * L_PIXSIZE;
+            painter.drawPixmap(x, y, pixmap);
+		}
+	}
+	painter.end();
+
+	finalImage.save(pFileName, "PNG");
+	return true;
+}
+
 void MapTable::ChangeSize(int pRowNum, int pColNum)
 {
-	if (mRowNum == pRowNum && mColNum == pColNum) return;
+	int rowNum = rowCount(), colNum = columnCount();
+	if (rowNum == pRowNum && colNum == pColNum) return;
 
 	FinalizeMove();
 	setRowCount(pRowNum);
 	setColumnCount(pColNum);
-	for (int r = mRowNum; r < pRowNum; r++) setRowHeight(r, L_PIXSIZE);
-	for (int c = mColNum; c < pColNum; c++) setColumnWidth(c, L_PIXSIZE);
-	mRowNum = pRowNum;
-	mColNum = pColNum;
+	for (int r = rowNum; r < pRowNum; r++) setRowHeight(r, L_PIXSIZE);
+	for (int c = colNum; c < pColNum; c++) setColumnWidth(c, L_PIXSIZE);
 	mData.resize(pRowNum * pColNum);
 }
 
 void MapTable::SetDrawGrid(bool onoff)
 {
+	int rowNum = rowCount(), colNum = columnCount();
 	setShowGrid(onoff);
 	const int pixSize = (onoff)? L_PIXSIZE-1 : L_PIXSIZE;
 	QPixmap pix;
-	for (int r = 0; r < mRowNum; r++) {
-		for (int c = 0; c < mColNum; c++) {
-			int idx = r * mColNum + c;
+	for (int r = 0; r < rowNum; r++) {
+		for (int c = 0; c < colNum; c++) {
+			int idx = r * colNum + c;
 			int iconIdx = mData[idx];
 			if (iconIdx < 0 || !mMainWin->GetPixmap(pix, iconIdx)) continue;
 			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
@@ -170,10 +196,11 @@ void MapTable::NotifyIconChanged()
 
 int MapTable::GetIconIdx(int row, int col) const
 {
-	if (row < 0 || col < 0 || row >= mRowNum || col >= mColNum)
+	int rowNum = rowCount(), colNum = columnCount();
+	if (row < 0 || col < 0 || row >= rowNum || col >= colNum)
 		return -1;
 
-	int idx = row * mColNum + col;
+	int idx = row * colNum + col;
 	return mData[idx];
 }
 
@@ -187,9 +214,10 @@ const SelectInfo * MapTable::GetIconInfo(int row, int col) const
 
 bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect, bool pIsUpdate)
 {
-	if (pRow < 0 || pCol < 0 || pRow >= mRowNum || pCol >= mColNum)
+	int rowNum = rowCount(), colNum = columnCount();
+	if (pRow < 0 || pCol < 0 || pRow >= rowNum || pCol >= colNum)
 		return false;
-	int idx = pRow * mColNum + pCol;
+	int idx = pRow * colNum + pCol;
 	if (pIconIdx < 0) {
 		if (!pIsUpdate || mData[idx] == pIconIdx) {
 			QLabel *label = qobject_cast<QLabel *>(cellWidget(pRow, pCol));
@@ -234,17 +262,6 @@ void MapTable::SetPixmap(int row, int col, const QPixmap &pixmap, int pShowFlg)
 	}
 }
 
-/* void MapTable::SetPixmap(const Zone &pZone, const QPixmap &pPixmap, int pShowFlg)
-{
-	if (pZone.empty()) return;
-
-	for (int r = pZone[0].r; r <= pZone[1].r; r++) {
-		for (int c = pZone[0].c; c <= pZone[1].c; c++) {
-			SetPixmap(r, c, pPixmap, pShowFlg);
-		}
-	}
-} */
-
 void MapTable::DrawPixmapSelZone()
 {
 	if (mSelZone.empty() || mIconZone.empty()) return;
@@ -264,7 +281,7 @@ void MapTable::ResetSelZonePixmap(const Zone *pZone)
 	for (int r = mSelZone[0].r; r <= mSelZone[1].r && r >= 0; r++) {
 		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
 			if (pZone && pZone->contains(r, c)) continue;
-			int idx = r * mColNum + c;
+			int idx = r * columnCount() + c;
 			SetPixmap(r, c, mData[idx]);
 		}
 	}
@@ -278,7 +295,7 @@ bool MapTable::Select(const Zone *pSelZone)
 
 	for (int r = selZone[0].r; r <= selZone[1].r; r++) {
 		for (int c = selZone[0].c; c <= selZone[1].c; c++) {
-			int idx = r * mColNum + c;
+			int idx = r * columnCount() + c;
 			SetPixmap(r, c, mData[idx], true, false);
 		}
 	}
@@ -292,12 +309,13 @@ void MapTable::UnSelect()
 	FinalizeMove();
 	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
 		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
-			int idx = r * mColNum + c;
+			int idx = r * columnCount() + c;
 			SetPixmap(r, c, mData[idx], false, false);
 		}
 	}
 
-	QTableWidgetSelectionRange range(0, 0, mRowNum-1, mColNum-1);
+	int rowNum = rowCount(), colNum = columnCount();
+	QTableWidgetSelectionRange range(0, 0, rowNum-1, colNum-1);
     setRangeSelected(range, false);
 	mPressPnt.init();
 	mSelZone.init();
@@ -308,8 +326,9 @@ void MapTable::SelectAll()
 {
 	if ((mAttr & L_Attr_SelectMode) == 0) return;
 
+	int rowNum = rowCount(), colNum = columnCount();
 	FinalizeMove();
-	mSelZone.init(0, 0, mRowNum-1, mColNum-1);
+	mSelZone.init(0, 0, rowNum-1, colNum-1);
 	Select();
 	QTableWidgetSelectionRange range(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
     setRangeSelected(range, true);
@@ -320,16 +339,17 @@ void MapTable::Clear()
 {
 	if (mSelZone.empty()) return;
 
+	int rowNum = rowCount(), colNum = columnCount();
 	FinalizeMove();
 	AddUndo(L_OPE_CLEAR);
 
 	for (int r = mSelZone[0].r; r <= mSelZone[1].r; r++) {
 		for (int c = mSelZone[0].c; c <= mSelZone[1].c; c++) {
-			int idx = r * mColNum + c;
+			int idx = r * columnCount() + c;
 			SetPixmap(r, c, -1);
 		}
 	}
-	QTableWidgetSelectionRange range(0, 0, mRowNum-1, mColNum-1);
+	QTableWidgetSelectionRange range(0, 0, rowNum-1, colNum-1);
     setRangeSelected(range, false);
 	mSelZone.init();
 	mMainWin->NotifyEdited();
@@ -337,10 +357,11 @@ void MapTable::Clear()
 
 void MapTable::Move(int pOfsRow, int pOfsCol)
 {
+	int rowNum = rowCount(), colNum = columnCount();
 	if		(mSelZone[0].r + pOfsRow < 0) pOfsRow = -mSelZone[0].r;
-	else if (mSelZone[1].r + pOfsRow > mRowNum-1) pOfsRow = mRowNum-mSelZone[1].r-1;
+	else if (mSelZone[1].r + pOfsRow > rowNum-1) pOfsRow = rowNum-mSelZone[1].r-1;
 	if		(mSelZone[0].c + pOfsCol < 0) pOfsCol = -mSelZone[0].c;
-	else if (mSelZone[1].c + pOfsCol > mColNum-1) pOfsCol = mColNum-mSelZone[1].c-1;
+	else if (mSelZone[1].c + pOfsCol > colNum-1) pOfsCol = colNum-mSelZone[1].c-1;
 	if (pOfsRow == 0 && pOfsCol == 0) return;
 
 	bool isCopy = IsCopyMode();
@@ -365,7 +386,7 @@ void MapTable::Move(int pOfsRow, int pOfsCol)
 		}
 	}
 	mSelZone.move(pOfsRow, pOfsCol);
-	QTableWidgetSelectionRange range(0, 0, mRowNum-1, mColNum-1);
+	QTableWidgetSelectionRange range(0, 0, rowNum-1, colNum-1);
     setRangeSelected(range, false);
 	QTableWidgetSelectionRange range2(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
     setRangeSelected(range2, true);
@@ -387,7 +408,8 @@ int MapTable::Undo()
 	}
 	if (preJnl.mOperation == L_OPE_COPY) preJnl.mSelZone.init();
 
-	Journal redoJnl(mRowNum, mColNum, preJnl.mOperation, mData, mSelZone, curPos);
+	int rowNum = rowCount(), colNum = columnCount();
+	Journal redoJnl(rowNum, colNum, preJnl.mOperation, mData, mSelZone, curPos);
 //	printf("undo %zd: (%d %d)\n", mUndoStack.size(), preJnl.mCurPos.r, preJnl.mCurPos.c);
 	mRedoStack.push_back(redoJnl);
 //	printf("add redo %zd: ", mRedoStack.size()); redoJnl.Dump();
@@ -409,9 +431,10 @@ int MapTable::Redo()
 
 void MapTable::AddUndo(int ope, const Point *pCurPos)
 {
+	int rowNum = rowCount(), colNum = columnCount();
 	Point curPos(currentRow(), currentColumn());
 	if (pCurPos) curPos = *pCurPos;
-	Journal jnl(mRowNum, mColNum, ope, mData, mSelZone, curPos);
+	Journal jnl(rowNum, colNum, ope, mData, mSelZone, curPos);
 	mUndoStack.push_back(jnl);
 //	printf("add undo %zd: ", mUndoStack.size()); jnl.Dump();
 	if (!pCurPos) mRedoStack.clear();
@@ -420,8 +443,9 @@ void MapTable::AddUndo(int ope, const Point *pCurPos)
 bool MapTable::IsSelectAll() const
 {
 	if ((mAttr & L_Attr_SelectMode) == 0) return false;
+	int rowNum = rowCount(), colNum = columnCount();
 	return (mSelZone[0].r == 0 && mSelZone[0].c == 0 &&
-			mSelZone[1].r == mRowNum-1 && mSelZone[1].c == mColNum-1)?
+			mSelZone[1].r == rowNum-1 && mSelZone[1].c == colNum-1)?
 			true : false;
 }
 
@@ -491,7 +515,7 @@ void MapTable::FinalizeInput()
 	for (int r = mSelZone[0].r; r < mSelZone[0].r+rowNum; r++) {
 		for (int c = mSelZone[0].c; c < mSelZone[0].c+colNum; c++) {
 			const SelectInfo *iconInfo = GetIconInfo(r, c);
-			int idx = r * mColNum + c;
+			int idx = r * columnCount() + c;
 			mData[idx] = (iconInfo)? iconInfo->mIconIdx : -1;
 		}
 	}
@@ -523,7 +547,7 @@ void MapTable::FinalizeMove()
 		for (int c = sCol; c != eCol+incCol; c += incCol) {
 			int preRow = r+ofsRow, preCol = c+ofsCol;
 			int iconIdx = GetIconIdx(preRow, preCol);
-			int idx = r * mColNum + c;
+			int idx = r * columnCount() + c;
 			mData[idx] = iconIdx;
 		}
 	}
@@ -533,7 +557,7 @@ void MapTable::FinalizeMove()
 		for (int r = mSelZone[0].r+ofsRow; r <= mSelZone[1].r+ofsRow; r++) {
 			for (int c = mSelZone[0].c+ofsCol; c <= mSelZone[1].c+ofsCol; c++) {
 				if (mSelZone.contains(r, c)) continue;
-				int idx = r * mColNum + c;
+				int idx = r * columnCount() + c;
 				mData[idx] = -1;
 			}
 		}

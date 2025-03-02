@@ -43,6 +43,7 @@ MainWindow::MainWindow(const string &pCurDir)
 	QIcon iconApp("./lib/app.png");
 	QIcon iconOpen("./lib/open.png");
 	QIcon iconSave("./lib/save.png");
+	QIcon iconExport("./lib/export.png");
 	QIcon iconClear("./lib/clear.png");
 	QIcon iconCopy("./lib/copy.png");
 	QIcon iconUndo("./lib/undo.png");
@@ -62,6 +63,7 @@ MainWindow::MainWindow(const string &pCurDir)
 
 	QAction *openAction = new QAction(iconOpen, M_QSTR(Message::TrC(MG_File_Open)), this);
 	QAction *saveAction = new QAction(iconSave, M_QSTR(Message::TrC(MG_File_Save)), this);
+	QAction *exportAction = new QAction(iconExport, M_QSTR(Message::TrC(MG_File_Export)) + "(&E)...", this);
 	QAction *exitAction = new QAction(M_QSTR(Message::TrC(MG_Exit)), this);
 	mUndoAction = new QAction(iconUndo, M_QSTR(Message::TrC(MG_Undo)), this);
 	mRedoAction = new QAction(iconRedo, M_QSTR(Message::TrC(MG_Redo)), this);
@@ -88,6 +90,7 @@ MainWindow::MainWindow(const string &pCurDir)
 	mFileMenu = menuBar()->addMenu(M_QSTR(Message::TrC(MG_File)));
 	mFileMenu->addAction(openAction);
 	mFileMenu->addAction(saveAction);
+	mFileMenu->addAction(exportAction);
 	mFileMenu->addAction(exitAction);
 
 	mEditMenu = menuBar()->addMenu(M_QSTR(Message::TrC(MG_Edit)));
@@ -123,6 +126,7 @@ MainWindow::MainWindow(const string &pCurDir)
 	// メニューアクションの処理
 	connect(openAction, &QAction::triggered, this, &MainWindow::onOpen);
 	connect(saveAction, &QAction::triggered, this, &MainWindow::onSave);
+	connect(exportAction, &QAction::triggered, this, &MainWindow::onExport);
 	connect(exitAction, &QAction::triggered, this, &MainWindow::onExit);
 	connect(mUndoAction, &QAction::triggered, this, &MainWindow::onUndo);
 	connect(mRedoAction, &QAction::triggered, this, &MainWindow::onRedo);
@@ -200,6 +204,21 @@ void MainWindow::onOpen()
 void MainWindow::onSave()
 {
 	WriteFile(mFileName);
+}
+
+void MainWindow::onExport()
+{
+	QString filePath = QFileDialog::getSaveFileName(this,
+            M_QSTR(Message::TrC(MG_File_Export)), mDataDir.c_str(), "Image Files (*.png)");
+	if (filePath.isEmpty()) return;
+	if (!filePath.endsWith(".png", Qt::CaseInsensitive)) filePath += ".png";
+
+	if (mMapTable->ExportFile(filePath)) {
+		QTextCodec *codec = QTextCodec::codecForName("Shift-JIS");
+		QString msg = M_QSTR(Message::TrC(MG_ExportMapData, codec->fromUnicode(filePath).constData()));
+		QMessageBox::information(this, M_QSTR(Message::TrC(MG_File_Export)),
+			M_QSTR(Message::TrC(MG_ExportMapData, codec->fromUnicode(filePath).constData())));
+	}
 }
 
 void MainWindow::onExit()
@@ -288,7 +307,7 @@ void MainWindow::onSetting()
 {
 	SettingDlg *dlg = new SettingDlg(this);
 	const string &dir = mIconTable->GetDir();
-	int rowNum = mMapTable->GetRowNum(), colNum = mMapTable->GetColNum();
+	int rowNum = mMapTable->rowCount(), colNum = mMapTable->columnCount();
 	dlg->Init(dir, rowNum, colNum);
 	if (dlg->exec() != QDialog::Accepted) return;
 

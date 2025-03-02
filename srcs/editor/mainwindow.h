@@ -28,6 +28,7 @@ public:
 private slots:
 	void onOpen();
 	void onSave();
+	void onExport();
 	void onExit();
 	void onUndo();
 	void onRedo();
