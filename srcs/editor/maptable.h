@@ -29,6 +29,8 @@ public:
 	void Init(int pRowNum, int pColNum, vector<int> *pData = NULL,
 			const Zone *pSelZone = NULL, const Point *pCurPos = NULL,
 			bool pIsSelect = true);
+	void ChangeSize(int pRowNum, int pColNum);
+	void Close();
 	void OutputFile(FILE *fp);
 	bool ExportFile(const QString &pFileName);
 
@@ -38,14 +40,16 @@ public:
 	void SetDrawGrid(bool onoff);
 	void SetSelectMode(bool onoff);
 	void SetCopyMode(bool onoff);
-	int Undo();
-	int Redo();
+	void Undo();
+	void Redo();
 	void Clear();
 	void SelectAll();
 	bool IsSelectMode() const { return (mAttr & L_Attr_SelectMode)? true : false; }
 	bool IsSelectZone() const { return ((mAttr & L_Attr_SelectMode) && !mSelZone.empty())? true : false; }
 	bool IsSelectAll() const;
 	bool IsCopyMode() const { return (mAttr & L_Attr_CopyMode)? true : false; }
+	bool CanUndo() const { return (mUndoStack.empty())? false : true; }
+	bool CanRedo() const { return (mRedoStack.empty())? false : true; }
 	void NotifyIconChanged();
 
 public slots:
@@ -55,11 +59,9 @@ public slots:
 private:
 	bool SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect = false, bool pIsUpdate = true);
 	void SetPixmap(int row, int col, const QPixmap &pixmap, int pShowFlg = -1);
-	// void SetPixmap(const Zone &pZone, const QPixmap &pPixmap, int pShowFlg = -1);
 	const SelectInfo * GetIconInfo(int row, int col) const;
 	void DrawPixmapSelZone();
 	void ResetSelZonePixmap(const Zone *pZone);
-	void ChangeSize(int pRowNum, int pColNum);
 	void FinalizeInput();
 	void FinalizeMove();
 	void Select(int row, int col);

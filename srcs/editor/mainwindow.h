@@ -15,19 +15,16 @@ class MainWindow : public QMainWindow
 public:
 	MainWindow(const string &curDir);
 	void Initiate();
-	IconTable * GetIconTable() { return mIconTable; }
-	MapTable * GetMapTable() { return mMapTable; }
 
-	bool GetPixmap(QPixmap &pPixmap, int pIconIdx) const;
-	bool GetCurPixmap(QPixmap &pPixmap) const;
 	void NotifyCurIconChanged();
 	void NotifyIconEdited();
-	void NotifySelectChanged();
 	void NotifyEdited();
 
 private slots:
 	void onOpen();
+	void onClose();
 	void onSave();
+	void onSaveAs();
 	void onExport();
 	void onExit();
 	void onUndo();
@@ -44,6 +41,7 @@ private slots:
 	void onRight();
 
 private:
+	bool SetMapFileName(const QString &pFileName);
 	bool ConfirmSave();
 	int LoadMapFile();
 	void ReadTableData(vector<int> &pData, const string &pStr) const;
@@ -58,6 +56,10 @@ private:
 
 	QMenu *mFileMenu;
 	QMenu *mEditMenu;
+	QAction *mCloseAction;
+	QAction *mSaveAction;
+	QAction *mSaveAsAction;
+	QAction *mExportAction;
 	QAction *mGridAction;
 	QAction *mSelectAction;
 	QAction *mSelectAllAction;
@@ -65,6 +67,7 @@ private:
 	QAction *mClearAction;
 	QAction *mUndoAction;
 	QAction *mRedoAction;
+	QAction *mSettingAction;
 
 	IconTable *mIconTable;
 	MapTable *mMapTable;

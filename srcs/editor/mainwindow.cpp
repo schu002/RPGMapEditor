@@ -31,6 +31,12 @@ string trim(const std::string &s)
 	return rtrim(ltrim(s));
 }
 
+string ConvToStr(const QString &pStr)
+{
+	QTextCodec *codec = QTextCodec::codecForName("Shift-JIS");
+	return codec->fromUnicode(pStr).constData();
+}
+
 };
 
 MainWindow::MainWindow(const string &pCurDir)
@@ -43,6 +49,7 @@ MainWindow::MainWindow(const string &pCurDir)
 	QIcon iconApp("./lib/app.png");
 	QIcon iconOpen("./lib/open.png");
 	QIcon iconSave("./lib/save.png");
+	QIcon iconSaveAs("./lib/saveas.png");
 	QIcon iconExport("./lib/export.png");
 	QIcon iconClear("./lib/clear.png");
 	QIcon iconCopy("./lib/copy.png");
@@ -62,8 +69,10 @@ MainWindow::MainWindow(const string &pCurDir)
 	setWindowIcon(iconApp);
 
 	QAction *openAction = new QAction(iconOpen, M_QSTR(Message::TrC(MG_File_Open)), this);
-	QAction *saveAction = new QAction(iconSave, M_QSTR(Message::TrC(MG_File_Save)), this);
-	QAction *exportAction = new QAction(iconExport, M_QSTR(Message::TrC(MG_File_Export)) + "(&E)...", this);
+	mCloseAction = new QAction(M_QSTR(Message::TrC(MG_File_Close)), this);
+	mSaveAction = new QAction(iconSave, M_QSTR(Message::TrC(MG_File_Save)), this);
+	mSaveAsAction = new QAction(iconSaveAs, M_QSTR(Message::TrC(MG_File_SaveAs)), this);
+	mExportAction = new QAction(iconExport, M_QSTR(Message::TrC(MG_File_Export)) + "(&E)...", this);
 	QAction *exitAction = new QAction(M_QSTR(Message::TrC(MG_Exit)), this);
 	mUndoAction = new QAction(iconUndo, M_QSTR(Message::TrC(MG_Undo)), this);
 	mRedoAction = new QAction(iconRedo, M_QSTR(Message::TrC(MG_Redo)), this);
@@ -84,13 +93,16 @@ MainWindow::MainWindow(const string &pCurDir)
 	mSelectAction->setToolTip(msg);
 	mSelectAllAction = new QAction(iconSelectAll, M_QSTR(Message::TrC(MG_SelectAll)), this);
 	mClearAction = new QAction(iconClear, M_QSTR(Message::TrC(MG_Clear)), this);
-	QAction *settingAction = new QAction(iconSetup, M_QSTR(Message::TrC(MG_Setting) + "..."), this);
+	mSettingAction = new QAction(iconSetup, M_QSTR(Message::TrC(MG_Setting) + "..."), this);
 
 	// メニューバーの作成
 	mFileMenu = menuBar()->addMenu(M_QSTR(Message::TrC(MG_File)));
 	mFileMenu->addAction(openAction);
-	mFileMenu->addAction(saveAction);
-	mFileMenu->addAction(exportAction);
+	mFileMenu->addAction(mCloseAction);
+	mFileMenu->addAction(mSaveAction);
+	mFileMenu->addAction(mSaveAsAction);
+	mFileMenu->addAction(mExportAction);
+	mFileMenu->addSeparator();
 	mFileMenu->addAction(exitAction);
 
 	mEditMenu = menuBar()->addMenu(M_QSTR(Message::TrC(MG_Edit)));
@@ -104,12 +116,13 @@ MainWindow::MainWindow(const string &pCurDir)
 	mEditMenu->addAction(mSelectAllAction);
 	mEditMenu->addAction(mClearAction);
 	mEditMenu->addSeparator();
-	mEditMenu->addAction(settingAction);
+	mEditMenu->addAction(mSettingAction);
 
 	// ツールバーの作成
 	QToolBar *toolBar = addToolBar("Main Toolbar");
 	toolBar->addAction(openAction);
-	toolBar->addAction(saveAction);
+	toolBar->addAction(mSaveAction);
+	toolBar->addAction(mSaveAsAction);
 	toolBar->addSeparator();
 	toolBar->addAction(mUndoAction);
 	toolBar->addAction(mRedoAction);
@@ -121,12 +134,14 @@ MainWindow::MainWindow(const string &pCurDir)
 	toolBar->addAction(mSelectAllAction);
 	toolBar->addAction(mClearAction);
 	toolBar->addSeparator();
-	toolBar->addAction(settingAction);
+	toolBar->addAction(mSettingAction);
 
 	// メニューアクションの処理
 	connect(openAction, &QAction::triggered, this, &MainWindow::onOpen);
-	connect(saveAction, &QAction::triggered, this, &MainWindow::onSave);
-	connect(exportAction, &QAction::triggered, this, &MainWindow::onExport);
+	connect(mCloseAction, &QAction::triggered, this, &MainWindow::onClose);
+	connect(mSaveAction, &QAction::triggered, this, &MainWindow::onSave);
+	connect(mSaveAsAction, &QAction::triggered, this, &MainWindow::onSaveAs);
+	connect(mExportAction, &QAction::triggered, this, &MainWindow::onExport);
 	connect(exitAction, &QAction::triggered, this, &MainWindow::onExit);
 	connect(mUndoAction, &QAction::triggered, this, &MainWindow::onUndo);
 	connect(mRedoAction, &QAction::triggered, this, &MainWindow::onRedo);
@@ -135,7 +150,7 @@ MainWindow::MainWindow(const string &pCurDir)
 	connect(mSelectAction, &QAction::triggered, this, &MainWindow::onSelect);
 	connect(mSelectAllAction, &QAction::triggered, this, &MainWindow::onSelectAll);
 	connect(mClearAction, &QAction::triggered, this, &MainWindow::onClear);
-	connect(settingAction, &QAction::triggered, this, &MainWindow::onSetting);
+	connect(mSettingAction, &QAction::triggered, this, &MainWindow::onSetting);
 
 	QWidget *centralWidget = new QWidget(this);
 	setCentralWidget(centralWidget);
@@ -189,21 +204,45 @@ void MainWindow::onOpen()
 		 				M_QSTR(Message::TrC(MG_OpenMapFile)),
 						mDataDir.c_str(),
 						M_QSTR(Message::TrC(MG_MapDataFile)));
-	if (fname.isEmpty()) return;
+	if (!SetMapFileName(fname)) return;
 
-	QTextCodec *codec = QTextCodec::codecForName("Shift-JIS");
-	QByteArray sjisBytes = codec->fromUnicode(fname);
-	string str(sjisBytes.constData(), sjisBytes.size());
-	int idx = str.rfind('/');
-	if (idx < 1) return;
-	mDataDir = str.substr(0, idx);
-	mFileName = str.substr(idx+1, str.size()-idx-1);
+	mIconTable->setEnabled(true);
+	mMapTable->setEnabled(true);
 	LoadMapFile();
+	mCloseAction->setEnabled(true);
+	mSaveAction->setEnabled(true);
+	mSaveAsAction->setEnabled(true);
+	mExportAction->setEnabled(true);
+	mSelectAction->setEnabled(true);
+	mSettingAction->setEnabled(true);
+}
+
+void MainWindow::onClose()
+{
+	if (!ConfirmSave()) return;
+
+	mMapTable->Close();
+	mIconTable->Close();
+	mFileName = "";
+	mIsModified = false;
+	setWindowTitle(M_QSTR(Message::TrC(MG_RPGMap_Editor)));
+	SetEditBtnEnable();
 }
 
 void MainWindow::onSave()
 {
 	WriteFile(mFileName);
+}
+
+void MainWindow::onSaveAs()
+{
+	QString fname = QFileDialog::getSaveFileName(this,
+            M_QSTR(Message::TrC(MG_File_SaveAs)), mDataDir.c_str(), M_QSTR(Message::TrC(MG_MapDataFile)));
+	if (!SetMapFileName(fname)) return;
+
+	WriteFile(mFileName);
+	string str = ConvToStr(fname);
+	statusBar()->showMessage(M_QSTR(Message::TrC(MG_SaveMapData, str.c_str())));
 }
 
 void MainWindow::onExport()
@@ -214,10 +253,9 @@ void MainWindow::onExport()
 	if (!filePath.endsWith(".png", Qt::CaseInsensitive)) filePath += ".png";
 
 	if (mMapTable->ExportFile(filePath)) {
-		QTextCodec *codec = QTextCodec::codecForName("Shift-JIS");
-		QString msg = M_QSTR(Message::TrC(MG_ExportMapData, codec->fromUnicode(filePath).constData()));
+		string str = ConvToStr(filePath);
 		QMessageBox::information(this, M_QSTR(Message::TrC(MG_File_Export)),
-			M_QSTR(Message::TrC(MG_ExportMapData, codec->fromUnicode(filePath).constData())));
+			M_QSTR(Message::TrC(MG_ExportMapData, str.c_str())));
 	}
 }
 
@@ -227,27 +265,29 @@ void MainWindow::onExit()
 	close();
 }
 
+bool MainWindow::SetMapFileName(const QString &pFileName)
+{
+	mDataDir = mFileName = "";
+	if (pFileName.isEmpty()) return false;
+
+	string str = ConvToStr(pFileName);
+	int idx = str.rfind('/');
+	if (idx < 1) return false;
+	mDataDir = str.substr(0, idx);
+	mFileName = str.substr(idx+1, str.size()-idx-1);
+	return true;
+}
+
 /*　元に戻す　*/
 void MainWindow::onUndo()
 {
-	if (!mMapTable->Undo()) {
-		mUndoAction->setEnabled(false);
-		mIsModified = false;
-		SetTitle();
-	}
-	mRedoAction->setEnabled(true);
-	SetEditBtnEnable();
+	mMapTable->Undo();
 }
 
 /*　やり直す　*/
 void MainWindow::onRedo()
 {
-	if (!mMapTable->Redo()) {
-		mRedoAction->setEnabled(false);
-	}
-	mUndoAction->setEnabled(true);
-	mIsModified = true;
-	SetTitle();
+	mMapTable->Redo();
 }
 
 void MainWindow::onGrid()
@@ -323,7 +363,7 @@ void MainWindow::onSetting()
 
 	rowNum = dlg->GetMapSizeRow();
 	colNum = dlg->GetMapSizeCol();
-	mMapTable->Init(rowNum, colNum);
+	mMapTable->ChangeSize(rowNum, colNum);
 
 	mIsModified = true;
 	SetTitle();
@@ -357,6 +397,7 @@ void MainWindow::Initiate()
 bool MainWindow::ConfirmSave()
 {
 	if (!mIsModified) return true;
+	if (mFileName.empty()) return true;
 
 	QMessageBox::StandardButton reply;
 	reply = QMessageBox::question(this, M_QSTR(Message::TrC(MG_Confirm)),
@@ -470,16 +511,6 @@ int MainWindow::WriteFile(const string &pFileName)
 	return 1;
 }
 
-bool MainWindow::GetPixmap(QPixmap &pPixmap, int pIconIdx) const
-{
-	return mIconTable->GetPixmap(pPixmap, pIconIdx);
-}
-
-bool MainWindow::GetCurPixmap(QPixmap &pPixmap) const
-{
-	return mIconTable->GetCurPixmap(pPixmap);
-}
-
 void MainWindow::closeEvent(QCloseEvent *pEvent)
 {
 	onExit();
@@ -494,12 +525,11 @@ void MainWindow::NotifyCurIconChanged()
 		return;
 	}
 
+	mMapTable->NotifyIconChanged();
 	string iconnm = mIconTable->GetCurIconFileName();
 	if (iconnm.empty()) {
-		mMapTable->NotifyIconChanged();
 		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotSelected)));
 	} else {
-		mMapTable->NotifyIconChanged();
 		statusBar()->showMessage(iconnm.c_str());
 	}
 }
@@ -510,22 +540,35 @@ void MainWindow::NotifyIconEdited()
 	SetTitle();
 }
 
-void MainWindow::NotifySelectChanged()
-{
-	SetEditBtnEnable();
-}
-
 void MainWindow::NotifyEdited()
 {
-	mIsModified = true;
-	SetTitle();
-	mUndoAction->setEnabled(true);
-	mRedoAction->setEnabled(false);
 	SetEditBtnEnable();
 }
 
 void MainWindow::SetEditBtnEnable()
 {
+	if (mFileName.empty()) {
+		mCloseAction->setEnabled(false);
+		mSaveAction->setEnabled(false);
+		mSaveAsAction->setEnabled(false);
+		mExportAction->setEnabled(false);
+		mUndoAction->setEnabled(false);
+		mRedoAction->setEnabled(false);
+		mSelectAction->setEnabled(false);
+		mSelectAllAction->setEnabled(false);
+		mCopyAction->setEnabled(false);
+		mClearAction->setEnabled(false);
+		mSettingAction->setEnabled(false);
+		mIconTable->setEnabled(false);
+		mMapTable->setEnabled(false);
+		return;
+	}
+
+	mUndoAction->setEnabled(mMapTable->CanUndo());
+	mRedoAction->setEnabled(mMapTable->CanRedo());
+	mIsModified = (mMapTable->CanUndo())? true : false;
+	SetTitle();
+
 	bool selMode = mSelectAction->isChecked();
 	bool editFlg = (selMode && mMapTable->IsSelectZone())? true : false;
 	mSelectAllAction->setEnabled(selMode);

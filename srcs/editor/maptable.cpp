@@ -46,51 +46,49 @@ MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, IconTable *pIconTable
 void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
 					const Zone *pSelZone, const Point *pCurPos, bool pIsSelect)
 {
-	if (pData) {
-		ChangeSize(pRowNum, pColNum);
-		if (pData->size() < pRowNum*pColNum) {
-			pData->resize(pRowNum*pColNum, -1);
-		}
-		bool selFlg1 = false, selFlg2 = false;
-		QPixmap pix;
-		for (int r = 0; r < pRowNum; r++) {
-			for (int c = 0; c < pColNum; c++) {
-				if (pIsSelect && (mAttr & L_Attr_SelectMode)) {
-					selFlg1 = (pSelZone && pSelZone->contains(r, c))? true : false;
-					selFlg2 = mSelZone.contains(r, c);
-				}
-				int idx = r * pColNum + c;
-				if (mData[idx] == (*pData)[idx] && !selFlg1 && !selFlg2) continue;
-				mData[idx] = (*pData)[idx];
+	ChangeSize(pRowNum, pColNum);
+	if (!pData) return;
 
-				bool isSelect = (selFlg1 || (!pSelZone && selFlg2))? true : false;
-				SetPixmap(r, c, mData[idx], isSelect, false);
+	bool selFlg1 = false, selFlg2 = false;
+	QPixmap pix;
+	for (int r = 0; r < pRowNum; r++) {
+		for (int c = 0; c < pColNum; c++) {
+			if (pIsSelect && (mAttr & L_Attr_SelectMode)) {
+				selFlg1 = (pSelZone && pSelZone->contains(r, c))? true : false;
+				selFlg2 = mSelZone.contains(r, c);
 			}
-		}
-		if (pSelZone && mSelZone != *pSelZone && (mAttr & L_Attr_SelectMode)) {
-			mSelZone = *pSelZone;
-			clearSelection();
-			if (!mSelZone.empty()) {
-				QTableWidgetSelectionRange range(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
-				setRangeSelected(range, true);
-			}
-		}
-		if (pCurPos && !pCurPos->empty()) setCurrentCell(pCurPos->r, pCurPos->c);
-	} else {
-		int rowNum = rowCount(), colNum = columnCount();
-		if (rowNum == pRowNum && colNum == pColNum) return;
+			int idx = r * pColNum + c;
+			if (mData[idx] == (*pData)[idx] && !selFlg1 && !selFlg2) continue;
+			mData[idx] = (*pData)[idx];
 
-		const vector<int> oldData(mData);
-		for (int r = 0; r < pRowNum; r++) {
-			for (int c = 0; c < pColNum; c++) {
-				int idx1 = r * pColNum + c;
-				int idx2 = r * colNum + c;
-				mData[idx1] = (r < rowNum && c < colNum)? oldData[idx2] : -1;
-			}
+			bool isSelect = (selFlg1 || (!pSelZone && selFlg2))? true : false;
+			SetPixmap(r, c, mData[idx], isSelect, false);
 		}
-
-		ChangeSize(pRowNum, pColNum);
 	}
+	if (pSelZone && mSelZone != *pSelZone && (mAttr & L_Attr_SelectMode)) {
+		mSelZone = *pSelZone;
+		clearSelection();
+		if (!mSelZone.empty()) {
+			QTableWidgetSelectionRange range(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
+			setRangeSelected(range, true);
+		}
+	}
+	if (pCurPos && !pCurPos->empty()) setCurrentCell(pCurPos->r, pCurPos->c);
+}
+
+void MapTable::Close()
+{
+	int rowNum = rowCount(), colNum = columnCount();
+	for (int r = 0; r < rowNum; r++) {
+		for (int c = 0; c < colNum; c++) {
+			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
+			if (label) label->setPixmap(QPixmap(""));
+		}
+	}
+	mData.clear();
+	mIconList.clear();
+	mUndoStack.clear();
+	mRedoStack.clear();
 }
 
 void MapTable::OutputFile(FILE *fp)
@@ -136,14 +134,28 @@ bool MapTable::ExportFile(const QString &pFileName)
 
 void MapTable::ChangeSize(int pRowNum, int pColNum)
 {
-	int rowNum = rowCount(), colNum = columnCount();
-	if (rowNum == pRowNum && colNum == pColNum) return;
+	if (pRowNum <= 0 || pColNum <= 0) return;
 
-	FinalizeMove();
-	setRowCount(pRowNum);
-	setColumnCount(pColNum);
-	for (int r = rowNum; r < pRowNum; r++) setRowHeight(r, L_PIXSIZE);
-	for (int c = colNum; c < pColNum; c++) setColumnWidth(c, L_PIXSIZE);
+	int rowNum = rowCount(), colNum = columnCount();
+	if (rowNum != pRowNum || colNum != pColNum) {
+		setRowCount(pRowNum);
+		setColumnCount(pColNum);
+		for (int r = rowNum; r < pRowNum; r++) setRowHeight(r, L_PIXSIZE);
+		for (int c = colNum; c < pColNum; c++) setColumnWidth(c, L_PIXSIZE);
+	}
+
+	const vector<int> oldData(mData);
+//	FinalizeMove();
+	if (pRowNum * pColNum > mData.size())
+		mData.resize(pRowNum * pColNum, -1);
+
+	for (int r = 0; r < pRowNum; r++) {
+		for (int c = 0; c < pColNum; c++) {
+			int idx1 = r * pColNum + c;
+			int idx2 = r * colNum + c;
+			mData[idx1] = (idx2 < oldData.size() && r < rowNum && c < colNum)? oldData[idx2] : -1;
+		}
+	}
 	mData.resize(pRowNum * pColNum);
 }
 
@@ -157,7 +169,7 @@ void MapTable::SetDrawGrid(bool onoff)
 		for (int c = 0; c < colNum; c++) {
 			int idx = r * colNum + c;
 			int iconIdx = mData[idx];
-			if (iconIdx < 0 || !mMainWin->GetPixmap(pix, iconIdx)) continue;
+			if (iconIdx < 0 || !mIconTable->GetPixmap(pix, iconIdx)) continue;
 			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
 			if (!label) continue;
 			label->setPixmap(pix);
@@ -227,7 +239,7 @@ bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect, bool 
 	}
 
 	QPixmap &pix = mTempPixmap;
-	if (mMainWin->GetPixmap(pix, pIconIdx)) {
+	if (mIconTable->GetPixmap(pix, pIconIdx)) {
 		if (pIsSelect) pix.setMask( pix.createHeuristicMask() );
 	}
 	int showFlg = (pIconIdx < 0)? 0 : 1;
@@ -319,7 +331,7 @@ void MapTable::UnSelect()
     setRangeSelected(range, false);
 	mPressPnt.init();
 	mSelZone.init();
-	mMainWin->NotifySelectChanged();
+	mMainWin->NotifyEdited();
 }
 
 void MapTable::SelectAll()
@@ -332,7 +344,7 @@ void MapTable::SelectAll()
 	Select();
 	QTableWidgetSelectionRange range(mSelZone[0].r, mSelZone[0].c, mSelZone[1].r, mSelZone[1].c);
     setRangeSelected(range, true);
-	mMainWin->NotifySelectChanged();
+	mMainWin->NotifyEdited();
 }
 
 void MapTable::Clear()
@@ -394,10 +406,10 @@ void MapTable::Move(int pOfsRow, int pOfsCol)
 	// Sleep(100);
 }
 
-int MapTable::Undo()
+void MapTable::Undo()
 {
 	FinalizeMove();
-	if (mUndoStack.empty()) return 0;
+	if (mUndoStack.empty()) return;
 
 	Point curPos(currentRow(), currentColumn());
 	Journal preJnl = mUndoStack.back();
@@ -414,19 +426,19 @@ int MapTable::Undo()
 	mRedoStack.push_back(redoJnl);
 //	printf("add redo %zd: ", mRedoStack.size()); redoJnl.Dump();
 	Init(preJnl.mRowNum, preJnl.mColNum, &preJnl.mData, &preJnl.mSelZone, &preJnl.mCurPos, preJnl.IsSelect());
-	return (mUndoStack.empty())? 0 : 1;
+	mMainWin->NotifyEdited();
 }
 
-int MapTable::Redo()
+void MapTable::Redo()
 {
-	if (mRedoStack.empty()) return 0;
+	if (mRedoStack.empty()) return;
 
 	Journal &newJnl = mRedoStack.back();
 	AddUndo(newJnl.mOperation, &newJnl.mCurPos);
 	Init(newJnl.mRowNum, newJnl.mColNum, &newJnl.mData, &newJnl.mSelZone, &newJnl.mCurPos, newJnl.IsSelect());
 	mRedoStack.pop_back();
 //	printf("redo %zd: (%d %d)\n", mRedoStack.size(), newJnl.mCurPos.r, newJnl.mCurPos.c);
-	return (mRedoStack.empty())? 0 : 1;
+	mMainWin->NotifyEdited();
 }
 
 void MapTable::AddUndo(int ope, const Point *pCurPos)
@@ -579,7 +591,7 @@ bool MapTable::eventFilter(QObject *obj, QEvent *e)
 				FinalizeMove();
 			} else if (mAttr & L_Attr_SelectMode) {
 				mMovePnt = mSelZone[0];
-				mMainWin->NotifySelectChanged();
+				mMainWin->NotifyEdited();
 			} else {
 				FinalizeInput();
 				mMainWin->NotifyEdited();
@@ -591,15 +603,15 @@ bool MapTable::eventFilter(QObject *obj, QEvent *e)
 
 bool MapTable::event(QEvent *e)
 {
-	if (e->type() == QEvent::KeyPress && (mAttr & L_Attr_SelectMode)) {
+	if (e->type() == QEvent::KeyPress) {
 		const int key = ((QKeyEvent *)e)->key();
 		const int mod = ((QKeyEvent *)e)->modifiers();
 		if (key == Qt::Key_Delete) {
-			Clear();
+			if (mAttr & L_Attr_SelectMode) Clear();
 		} else if (key == Qt::Key_Escape) {
-			UnSelect();
+			if (mAttr & L_Attr_SelectMode) UnSelect();
 		} else if (key == Qt::Key_Left || key == Qt::Key_Up || key == Qt::Key_Right || key == Qt::Key_Down) {
-			if (!mSelZone.empty()) {
+			if ((mAttr & L_Attr_SelectMode) && !mSelZone.empty()) {
 				int ofsRow = 0, ofsCol = 0;
 				if		(key == Qt::Key_Left)  ofsCol = -1;
 				else if (key == Qt::Key_Up)	   ofsRow = -1;
@@ -608,7 +620,11 @@ bool MapTable::event(QEvent *e)
 				Move(ofsRow, ofsCol);
 			}
 		} else if (key == Qt::Key_A && (mod & Qt::ControlModifier)) {
-			SelectAll();
+			if (mAttr & L_Attr_SelectMode) SelectAll();
+		} else if (key == Qt::Key_Z && (mod & Qt::ControlModifier)) {
+			Undo();
+		} else if (key == Qt::Key_Y && (mod & Qt::ControlModifier)) {
+			Redo();
 		}
 	}
 	return QTableWidget::event(e);

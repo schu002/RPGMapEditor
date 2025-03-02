@@ -10,7 +10,7 @@
 #define L_PIXSIZE		32
 
 IconTable::IconTable(QWidget *pParent, MainWindow *pMainWin)
-	: QTableWidget(L_NUM_ROW, L_NUM_COL, pParent), mMainWin(pMainWin), mAttr(0)
+	: QTableWidget(L_NUM_ROW, L_NUM_COL, pParent), mMainWin(pMainWin)
 {
 	horizontalHeader()->setVisible(false);
 	verticalHeader()->setVisible(false); 
@@ -33,7 +33,6 @@ IconTable::IconTable(QWidget *pParent, MainWindow *pMainWin)
 		setColumnWidth(c, L_PIXSIZE+6);
 	}
 
-	connect(this, &QTableWidget::currentCellChanged, this, &IconTable::slot_OnCurrentChanged);
 	viewport()->installEventFilter(this);
 }
 
@@ -117,6 +116,21 @@ int IconTable::Init(const string &pDir, const stringVector *pFiles, const vector
 	return mFiles.size();
 }
 	
+void IconTable::Close()
+{
+	int rowNum = rowCount(), colNum = columnCount();
+	for (int r = 0; r < rowNum; r++) {
+		for (int c = 0; c < colNum; c++) {
+			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
+			if (label) label->setPixmap(QPixmap(""));
+		}
+	}
+	mIconDir = "";
+	mFiles.clear();
+	mTable2ID.clear();
+	mID2Table.clear();
+}
+
 void IconTable::OutputFile(FILE *fp)
 {
 	fprintf(fp, "%s = %s\n", L_KEY_ICONDIR, mIconDir.c_str());
@@ -140,32 +154,6 @@ void IconTable::Clear()
 	mFiles.clear();
 	mTable2ID.clear();
 }
-
-/* bool IconTable::eventFilter(QObject *obj, QEvent *e)
-{
-	if (obj != viewport()) return false;
-	if (e->type() != QEvent::MouseButtonPress &&
-		e->type() != QEvent::MouseButtonRelease) return false;
-
-	QModelIndex index = indexAt(((QMouseEvent *)e)->pos());
-	if (!index.isValid()) return false;
-
-	const int r = index.row(), c = index.column();
-	if (e->type() == QEvent::MouseButtonPress) {
-		mMovePnt.init(r, c);
-		mAttr |= L_Attr_MousePress;
-	} else if (e->type() == QEvent::MouseButtonRelease) {
-		if ((mAttr & L_Attr_MousePress) == 0) return false;
-		if (mMovePnt.empty()) return false;
-		if (mAttr & L_Attr_Swap) {
-			mMainWin->NotifyIconEdited();
-		} else {
-			mMainWin->NotifyCurIconChanged();
-		}
-		mAttr &= ~(L_Attr_MousePress|L_Attr_Swap);
-	}
-	return false;
-} */
 
 void IconTable::Move(int pVec)
 {
@@ -258,13 +246,6 @@ bool IconTable::GetSelectZone(Zone &zone) const
 	return false;
 }
 
-void IconTable::slot_OnCurrentChanged(int row, int col)
-{
-	Zone selZone;
-	GetSelectZone(selZone);
-	mMainWin->NotifyCurIconChanged();
-}
-
 int IconTable::GetCurIconIdx() const
 {
 	int row = currentRow(), col = currentColumn();
@@ -293,31 +274,6 @@ bool IconTable::GetPixmap(QPixmap &pPixmap, int pIconIdx) const
 	return true;
 }
 
-bool IconTable::GetCurPixmap(QPixmap &pPixmap) const
-{
-	int iconIdx = GetCurIconIdx();
-	return GetPixmap(pPixmap, iconIdx);
-}
-
-bool IconTable::GetCurPixmap(vector<QPixmap> &pPixmaps) const
-{
-	Zone selZone;
-	if (!GetSelectZone(selZone)) {
-		pPixmaps.clear();
-		return false;
-	}
-
-	int cnt = 0;
-	pPixmaps.resize(selZone.rows() * selZone.cols());
-	for (int r = selZone[0].r; r <= selZone[1].r; r++) {
-		for (int c = selZone[0].c; c <= selZone[1].c; c++) {
-			QLabel *label = qobject_cast<QLabel*>(cellWidget(r, c));
-			pPixmaps[cnt++] = (label)? label->pixmap(Qt::ReturnByValue) : QPixmap("");
-		}
-	}
-	return true;
-}
-
 bool IconTable::GetCurPixmap(vector<SelectInfo> &pIconList) const
 {
 	Zone selZone;
@@ -338,4 +294,17 @@ bool IconTable::GetCurPixmap(vector<SelectInfo> &pIconList) const
 		}
 	}
 	return true;
+}
+
+bool IconTable::eventFilter(QObject *obj, QEvent *e)
+{
+	if (obj != viewport()) return false;
+	if (e->type() != QEvent::MouseButtonRelease) return false;
+	if (((QMouseEvent *)e)->button() != Qt::LeftButton) return false;
+
+	QModelIndex index = indexAt(((QMouseEvent *)e)->pos());
+	if (index.isValid()) {
+		mMainWin->NotifyCurIconChanged();
+	}
+	return false;
 }

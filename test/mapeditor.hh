@@ -4,6 +4,7 @@ MG_StartCode = 0,
 MG_RPGMap_Editor,		// RPG-MapEditor
 MG_File,				// ファイル(&F)
 MG_File_Open,			// 開く(&O)
+MG_File_Close,			// 閉じる(&C)
 MG_File_Save,			// 保存(&S)
 MG_File_SaveAs,			// 名前をつけて保存(&A)...
 MG_File_Export,			// エクスポート
@@ -39,6 +40,7 @@ MG_MapFileOpened,		// マップデータ "%s" をオープンしました。
 MG_ConfirmSave,			// マップデータは変更されています。<br>保存しますか？
 MG_OpenFileError,		// ファイル "%s" のオープンに失敗しました。
 MG_ImageFileNotFound,	// "%s"<br>アイコンフォルダに画像ファイルが見つかりません。
+MG_SaveMapData,			// マップデータをファイル "%s" に保存しました。
 MG_ExportMapData,		// マップデータを画像ファイル "%s" に出力しました。
 
 MG_EndCode
