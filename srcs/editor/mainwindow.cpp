@@ -4,7 +4,6 @@
 // マップデータファイルで使用するキー
 #define L_KEY_ICONDIR	"IconDir"
 #define L_KEY_ICONFILE	"IconFile"
-#define L_KEY_ICONTABLE	"IconTable"
 #define L_KEY_ICONSIZE	"IconSize"
 #define L_KEY_MAPSIZE	"MapSize"
 #define L_KEY_MAPDATA	"MapData"
@@ -63,6 +62,7 @@ MainWindow::MainWindow(const string &pCurDir)
 	QIcon iconDown("./lib/down.png");
 	QIcon iconLeft("./lib/left.png");
 	QIcon iconRight("./lib/right.png");
+	mNonePixmap = QPixmap("./lib/__none.png");
 
 	// ウィンドウのタイトル設定
 	setWindowTitle(M_QSTR(Message::TrC(MG_RPGMap_Editor)));
@@ -422,7 +422,7 @@ void MainWindow::SetTitle()
 */
 int MainWindow::LoadMapFile()
 {
-#define L_DEFAULT_ICONNUM	50	// デフォルトのアイコン数
+#define L_DEFAULT_ICONNUM	100	// デフォルトのアイコン数
 
 	string fname = mDataDir + "/" + mFileName;
 	FILE *fp = fopen(fname.c_str(), "r");
@@ -432,11 +432,11 @@ int MainWindow::LoadMapFile()
 	}
 
 	int rowNum = L_DEFALUT_MAPSIZE_ROW, colNum = L_DEFALUT_MAPSIZE_COL;
-	int iconFileLen = strlen(L_KEY_ICONFILE);
+	int iconFileLen = strlen(L_KEY_ICONFILE), maxID = -1;
 	bool crFlg = false;
 	string key, val, iconDir;
-	vector<int> mapData, iconTable;
-	stringVector iconFiles(L_DEFAULT_ICONNUM);
+	vector<int> mapData;
+	IconDataVector iconDatas(L_DEFAULT_ICONNUM);
 	char buf[4096];
 	while (fgets(buf, 4096, fp) != NULL) {
 		string str = buf;
@@ -459,12 +459,18 @@ int MainWindow::LoadMapFile()
 		} else if (key.substr(0, iconFileLen) == L_KEY_ICONFILE) {
 			string str = key.substr(iconFileLen, key.size()-iconFileLen);
 			int id = atoi(str.c_str())-1;
-			if (id >= 0) {
-				if (iconFiles.size() < id+1) iconFiles.resize(id+1);
-				iconFiles[id] = val;
+			if (id < 0) continue;
+
+			IconData iconData(val);
+			if (iconDatas.size() < id+1) iconDatas.resize(id+1);
+			int idx = val.find_last_of(':');
+			if (idx > 0) {
+				iconData.mFileName = trim(val.substr(0, idx));
+				string substr = trim(val.substr(idx+1, val.size()-idx-1));
+				if (!substr.empty()) iconData.mTableIdx = atoi(substr.c_str());
 			}
-		} else if (key == L_KEY_ICONTABLE) {
-			ReadTableData(iconTable, val);
+			iconDatas[id] = iconData;
+			maxID = M_MAX(maxID, id);
 		} else if (key == L_KEY_MAPSIZE) {
 			sscanf(val.c_str(), "%d %d", &rowNum, &colNum);
 		} else if (key == L_KEY_MAPDATA) {
@@ -472,7 +478,9 @@ int MainWindow::LoadMapFile()
 		}
 	}
 	fclose(fp);
-	mIconTable->Init(iconDir, &iconFiles, &iconTable);
+
+	if (maxID > 0) iconDatas.resize(maxID+1);
+	mIconTable->Init(iconDir, &iconDatas);
 	mMapTable->Init(rowNum, colNum, &mapData);
 	mIsModified = false;
 	SetTitle();
@@ -521,11 +529,9 @@ void MainWindow::NotifyCurIconChanged()
 	const string &iconDir = mIconTable->GetDir();
 	if (iconDir.empty()) {
 		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotRegist)));
-		mMapTable->NotifyIconChanged();
 		return;
 	}
 
-	mMapTable->NotifyIconChanged();
 	string iconnm = mIconTable->GetCurIconFileName();
 	if (iconnm.empty()) {
 		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotSelected)));

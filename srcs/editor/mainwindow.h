@@ -15,6 +15,7 @@ class MainWindow : public QMainWindow
 public:
 	MainWindow(const string &curDir);
 	void Initiate();
+	QPixmap GetNonePixmap() const { return mNonePixmap; }
 
 	void NotifyCurIconChanged();
 	void NotifyIconEdited();
@@ -69,6 +70,7 @@ private:
 	QAction *mRedoAction;
 	QAction *mSettingAction;
 
+	QPixmap mNonePixmap;	// アイコン未設定のセルに表示するPixmap
 	IconTable *mIconTable;
 	MapTable *mMapTable;
 	bool mIsModified;

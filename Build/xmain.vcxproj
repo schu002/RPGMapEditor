@@ -177,12 +177,14 @@
       <ProgramDatabaseFile>$(Platform)\$(ProjectName)\$(Configuration)/xmain.pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>
       <MapFileName>$(Platform)\$(ProjectName)\$(Configuration)/xmain.map</MapFileName>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention />
       <TargetMachine>MachineX64</TargetMachine>
       <AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
       <AdditionalManifestDependencies>name='qt5\bin\qt5' type='x64' version='1.0.0.0'</AdditionalManifestDependencies>
+      <IgnoreSpecificDefaultLibraries>msvcrtd;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -277,6 +279,7 @@
       <TargetMachine>MachineX64</TargetMachine>
       <AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
       <AdditionalManifestDependencies>name='qt5\bin\qt5' type='x64' version='1.0.0.0'</AdditionalManifestDependencies>
+      <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -325,6 +328,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource\resource.h" />
     <CustomBuild Include="..\srcs\editor\icontable.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DLL|Win32'">$(MOCEXE) -i %(RootDir)%(Directory)icontable.h -o %(RootDir)%(Directory)icontable_moc.h
 </Command>
@@ -384,6 +388,12 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release_DLL|x64'">%(RootDir)%(Directory)settingdlg_moc.h;%(Outputs)</Outputs>
     </CustomBuild>
     <ClInclude Include="..\srcs\editor\zone.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="resource\icon1.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resource\resource.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

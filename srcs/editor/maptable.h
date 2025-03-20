@@ -50,16 +50,16 @@ public:
 	bool IsCopyMode() const { return (mAttr & L_Attr_CopyMode)? true : false; }
 	bool CanUndo() const { return (mUndoStack.empty())? false : true; }
 	bool CanRedo() const { return (mRedoStack.empty())? false : true; }
-	void NotifyIconChanged();
 
 public slots:
-	void slot_OnPressed(int row, int col);
 	void slot_OnCurrentChanged(int row, int col, int preRow, int preCol);
 
+protected:
+	void mousePressEvent(QMouseEvent *event) override;
+
 private:
-	bool SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect = false, bool pIsUpdate = true);
+	bool SetPixmap(int row, int col, int pIconIdx, bool pIsSelect = false, bool pIsUpdate = true);
 	void SetPixmap(int row, int col, const QPixmap &pixmap, int pShowFlg = -1);
-	const SelectInfo * GetIconInfo(int row, int col) const;
 	void DrawPixmapSelZone();
 	void ResetSelZonePixmap(const Zone *pZone);
 	void FinalizeInput();
@@ -69,6 +69,7 @@ private:
 	void UnSelect();
 	void Move(int pOfsRow, int pOfsCol);
 	void AddUndo(int ope, const Point *curPos = NULL);
+	void GetIconMaxZone(Zone &zone) const;
 	bool eventFilter(QObject *obj, QEvent *e);
 	bool event(QEvent *e);
 
@@ -77,13 +78,13 @@ private:
 	int mCurIconIdx;
 	Point mPressPnt;	// マウスを押した位置
 	Point mMovePnt;		// 移動開始位置
-	Zone mSelZone, mIconZone;
+	Zone mSelZone;
 	vector<int>	mData;
-	vector<SelectInfo>	mIconList;
 	JournalStack mUndoStack;
 	JournalStack mRedoStack;
 	MainWindow *mMainWin;
 	IconTable *mIconTable;
+	QSize	mPixSize;
 	mutable QPixmap mTempPixmap;
 };
 

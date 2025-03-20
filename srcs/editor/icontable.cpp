@@ -9,16 +9,16 @@
 #define L_NUM_COL		5
 #define L_PIXSIZE		32
 
+typedef hashMap<string, int>					string2intMap;
+typedef hashMap<string, int>::const_iterator	string2intMapCItr;
+
 IconTable::IconTable(QWidget *pParent, MainWindow *pMainWin)
 	: QTableWidget(L_NUM_ROW, L_NUM_COL, pParent), mMainWin(pMainWin)
 {
 	horizontalHeader()->setVisible(false);
 	verticalHeader()->setVisible(false); 
-//	setReadOnly(true);
 	setDragEnabled(false);
-//	setSelectionMode(QTable::Single);
-//	setHScrollBarMode(QScrollView::AlwaysOff);
-	setFixedWidth(L_NUM_COL * (L_PIXSIZE+3) + 25);
+	setFixedWidth(L_NUM_COL * (L_PIXSIZE+6) + 20);
 	setEditTriggers(QAbstractItemView::NoEditTriggers);
 	setSelectionMode(QAbstractItemView::ContiguousSelection);
 	setStyleSheet(
@@ -26,124 +26,119 @@ IconTable::IconTable(QWidget *pParent, MainWindow *pMainWin)
 		"QTableView::item:selected { background: orange; }" // 選択時の色（デフォルトの青）
 	);
 
-	for (int r = 0; r < L_NUM_ROW; r++) {
-		setRowHeight(r, L_PIXSIZE+6);
-	}
-	for (int c = 0; c < L_NUM_COL; c++) {
-		setColumnWidth(c, L_PIXSIZE+6);
-	}
+	horizontalHeader()->setDefaultSectionSize(L_PIXSIZE+6);
+	verticalHeader()->setDefaultSectionSize(L_PIXSIZE+6);
 
 	viewport()->installEventFilter(this);
 }
 
-int IconTable::Init(const string &pDir, const stringVector *pFiles, const vector<int> *pTable)
+int IconTable::Init(const string &pDir, const IconDataVector *pDatas)
 {
 	if (pDir.empty()) return 0;
 
-	Clear();
-
-	mIconDir = pDir;
-	stringSet fileSet;
-	// 設定ファイルのアイコンファイル名
-	if (pFiles) {
-		mFiles = *pFiles;
-		for (int i = 0; i < mFiles.size(); i++) {
-			if (!mFiles[i].empty()) fileSet.insert(mFiles[i]);
-		}
+	// 現在の配置を覚えておく
+	IconDataSet iconSet;
+	const IconDataVector &datas = (pDatas)? *pDatas : mDatas;
+	for (int i = 0; i < datas.size(); i++) {
+		const IconData &data = datas[i];
+		if (!data.mFileName.empty()) iconSet.insert(data);
 	}
 
+	Clear();
+
+	bool isSameDir = (mIconDir.empty() || mIconDir == pDir)? true : false;
+	mIconDir = pDir;
+	if (pDatas) mDatas = *pDatas;
+
 	// pDirフォルダにあるファイルを検索
-	int fileNum = 0, emptyIdx = mFiles.size();
 	stringVector newFiles;
 	FileIter fitr(pDir.c_str(), "*.png");
 	while (fitr.Next()) {
 		const char *fname = fitr.GetFileName();
-		if (fileSet.empty()) {
-			mFiles.push_back(fname);
-		} else if (fileSet.find(fname) == fileSet.end()) {
-			if (mFiles[fileNum].empty()) mFiles[fileNum] = fname;
-			else newFiles.push_back(fname);
+		IconData data(fname);
+		IconDataSetCItr itr = (isSameDir)? iconSet.find(data) : iconSet.end();
+		if (!pDatas) {
+			if (itr != iconSet.end()) data.mTableIdx = itr->mTableIdx; // 前回の表示位置
+			mDatas.push_back(data);
+		} else if (itr == iconSet.end()) {
+			mDatas.push_back(data);
 		}
-		if (emptyIdx == mFiles.size() && mFiles[fileNum].empty())
-			emptyIdx = fileNum;
-		++fileNum;
 	}
 
-	// 新たに見つかったファイルを追加
-	for (int i = 0; i < newFiles.size(); i++) {
-		bool addFlg = false;
-		const string &fname = newFiles[i];
-		while (emptyIdx < mFiles.size()) {
-			if (mFiles[emptyIdx].empty()) {
-				mFiles[emptyIdx++] = fname;
-				addFlg = true;
-				break;
-			}
-			emptyIdx++;
-		}
-		if (!addFlg) mFiles.push_back(fname);
-	}
+	int rowNum = mDatas.size()/columnCount()+3;
+	rowNum = M_MAX(rowNum, L_NUM_ROW);
 
-	int rowNum = fileNum/columnCount()+3;
-	if (rowNum < mFiles.size()/columnCount()) rowNum = mFiles.size()/columnCount();
+	setRowCount(rowNum);
 	const int tableCnt = rowNum * columnCount();
-	mID2Table.resize(tableCnt);
 	mTable2ID.resize(tableCnt);
-	fill(mID2Table.begin(), mID2Table.end(), -1);
 	fill(mTable2ID.begin(), mTable2ID.end(), -1);
 
+	for (int idx = 0; idx < mDatas.size(); idx++) {
+		IconData &data = mDatas[idx];
+		if (data.mFileName.empty()) continue;
+		if (data.mTableIdx < 0) continue;
+		mTable2ID[data.mTableIdx] = idx;
+	}
+
+	// まだ表示位置が決まっていないファイルはtableIdxの小さいセルから順に入れていく。
+	int minTableIdx = -1;
+	for (int idx = 0; idx < mDatas.size(); idx++) {
+		IconData &data = mDatas[idx];
+		if (data.mFileName.empty()) continue;
+		if (data.mTableIdx >= 0) continue;
+		for (int i = minTableIdx+1; i < mTable2ID.size(); i++) {
+			if (mTable2ID[i] < 0) { minTableIdx = i; break; }
+		}
+		data.mTableIdx = minTableIdx;
+		mTable2ID[minTableIdx] = idx;
+	}
+
 	// アイコンテーブルに表示する
-	setRowCount(rowNum);
 	for (int r = 0; r < rowNum; r++) {
 		for (int c = 0; c < columnCount(); c++) {
-			int idx = r * columnCount() + c;
-			if (idx >= mFiles.size()) break;
-			int iconIdx = (pTable && idx < pTable->size())? (*pTable)[idx] : idx;
-			if (iconIdx >= 0 && mFiles[iconIdx].empty()) iconIdx = -1;
-			mTable2ID[idx] = iconIdx;
-			string fname = (iconIdx < 0)? "" : pDir + "/" + mFiles[iconIdx];
-			QPixmap pixmap(fname.c_str());
-			QLabel *label = new QLabel(this);
-			if (!fname.empty()) {
-				label->setPixmap(pixmap.scaled(L_PIXSIZE, L_PIXSIZE, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-		        label->setAlignment(Qt::AlignCenter);
-		        mID2Table[iconIdx] = idx;
+			QTableWidgetItem *witem = item(r, c);
+			if (!witem) {
+				witem = new QTableWidgetItem();
+				witem->setTextAlignment(Qt::AlignCenter);
+				setItem(r, c, witem);
 			}
-		    setCellWidget(r, c, label);
+	        string fname;
+	        int tblIdx = r * columnCount() + c;
+	        int iconIdx = mTable2ID[tblIdx];
+	        if (iconIdx >= 0) {
+	        	const IconData &data = mDatas[iconIdx];
+				fname = mIconDir + "/" + data.mFileName;
+	        }
+			QPixmap pixmap(fname.c_str());
+	        witem->setData(Qt::DecorationRole, pixmap);
 		}
 	}
+
 	setCurrentCell(0, 0);
-	return mFiles.size();
+	return mDatas.size();
 }
 	
 void IconTable::Close()
 {
-	int rowNum = rowCount(), colNum = columnCount();
+	/* int rowNum = rowCount(), colNum = columnCount();
 	for (int r = 0; r < rowNum; r++) {
 		for (int c = 0; c < colNum; c++) {
-			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
-			if (label) label->setPixmap(QPixmap(""));
+			QTableWidgetItem *witem = item(r, c);
+			witem->setData(Qt::DecorationRole, QPixmap(""));
 		}
-	}
+	} */
+	clear();
 	mIconDir = "";
-	mFiles.clear();
+	mDatas.clear();
 	mTable2ID.clear();
-	mID2Table.clear();
 }
 
 void IconTable::OutputFile(FILE *fp)
 {
 	fprintf(fp, "%s = %s\n", L_KEY_ICONDIR, mIconDir.c_str());
-	for (int i = 0; i < mFiles.size(); i++) {
-		fprintf(fp, "%s%d = %s\n", L_KEY_ICONFILE, i+1, mFiles[i].c_str());
-	}
-	for (int idx = 0; idx < mTable2ID.size(); idx++) {
-		int r = idx/columnCount(), c = idx % columnCount();
-		if (c == 0) fprintf(fp, (r == 0)? "IconTable =" : "\t");
-		fprintf(fp, "%3d,", mTable2ID[idx]+1);
-		if (c == columnCount()-1) {
-			if (idx < mTable2ID.size()-1) fprintf(fp, "%s\n", L_CR);
-		}
+	for (int i = 0; i < mDatas.size(); i++) {
+		const IconData &data = mDatas[i];
+		fprintf(fp, "%s%d = %s:%d\n", L_KEY_ICONFILE, i+1, data.mFileName.c_str(), data.mTableIdx);
 	}
 	fprintf(fp, "\n");
 }
@@ -151,7 +146,7 @@ void IconTable::OutputFile(FILE *fp)
 void IconTable::Clear()
 {
 	clear();
-	mFiles.clear();
+	mDatas.clear();
 	mTable2ID.clear();
 }
 
@@ -196,20 +191,21 @@ void IconTable::Move(int pVec)
 void IconTable::moveOne(int row1, int col1, int ofsRow, int ofsCol)
 {
 	int row2 = row1+ofsRow, col2 = col1+ofsCol;
-	QLabel *label1 = qobject_cast<QLabel *>(cellWidget(row1, col1));
-	QLabel *label2 = qobject_cast<QLabel *>(cellWidget(row2, col2));
-	QPixmap pix1 = (label1)? label1->pixmap(Qt::ReturnByValue) : QPixmap("");
-	QPixmap pix2 = (label2)? label2->pixmap(Qt::ReturnByValue) : QPixmap("");
+	QTableWidgetItem *item1 = item(row1, col1);
+	QTableWidgetItem *item2 = item(row2, col2);
+	QPixmap pix1, pix2;
+	GetPixmap(pix1, row1, col1);
+	GetPixmap(pix2, row2, col2);
 	// mMovePntと移動先のPixmapを交換する
-	if (label2) label2->setPixmap(pix1);
-	if (label1) label1->setPixmap(pix2);
+	item1->setData(Qt::DecorationRole, pix2);
+	item2->setData(Qt::DecorationRole, pix1);
 
 	int idx1 = row1 * columnCount() + col1;
 	int idx2 = row2 * columnCount() + col2;
 	int iconIdx1 = mTable2ID[idx1];
 	int iconIdx2 = mTable2ID[idx2];
-	if (iconIdx1 >= 0) mID2Table[iconIdx1] = idx2;
-	if (iconIdx2 >= 0) mID2Table[iconIdx2] = idx1;
+	if (iconIdx1 >= 0) mDatas[iconIdx1].mTableIdx = idx2;
+	if (iconIdx2 >= 0) mDatas[iconIdx2].mTableIdx = idx1;
 	mTable2ID[idx1] = iconIdx2;
 	mTable2ID[idx2] = iconIdx1;
 }
@@ -246,9 +242,14 @@ bool IconTable::GetSelectZone(Zone &zone) const
 	return false;
 }
 
-int IconTable::GetCurIconIdx() const
+int IconTable::GetCurIconIdx(int pOfsRow, int pOfsCol) const
 {
-	int row = currentRow(), col = currentColumn();
+	Zone selZone;
+	if (!GetSelectZone(selZone)) return -1;
+	int row = selZone[0].r+pOfsRow, col = selZone[0].c+pOfsCol;
+	if (row < 0 || col < 0 || row >= rowCount() || col >= columnCount())
+		return -1;
+
 	int idx = row * columnCount() + col;
 	return (idx >= 0 && idx < mTable2ID.size())? mTable2ID[idx] : -1;
 }
@@ -256,44 +257,38 @@ int IconTable::GetCurIconIdx() const
 string IconTable::GetCurIconFileName() const
 {
 	int iconIdx = GetCurIconIdx();
-	return (iconIdx >= 0 && iconIdx < mFiles.size())? mFiles[iconIdx] : "";
+	return (iconIdx >= 0 && iconIdx < mDatas.size())? mDatas[iconIdx].mFileName : "";
+}
+
+bool IconTable::GetPixmap(QPixmap &pixmap, int row, int col) const
+{
+	QTableWidgetItem *witem = item(row, col);
+	if (!witem) return false;
+	QVariant value = witem->data(Qt::DecorationRole);
+    if (value.isValid() && value.canConvert<QPixmap>()) {
+    	pixmap = qvariant_cast<QPixmap>(value);
+    	return true;
+    }
+	return false;
 }
 
 bool IconTable::GetPixmap(QPixmap &pPixmap, int pIconIdx) const
 {
-	int tableIdx = (pIconIdx >= 0 && pIconIdx < mID2Table.size())? mID2Table[pIconIdx] : -1;
-	if (tableIdx < 0) {
-		// pPixmap.fill(Qt::white);
-		return false;
-	}
+	int tableIdx = (pIconIdx >= 0 && pIconIdx < mDatas.size())? mDatas[pIconIdx].mTableIdx : -1;
+	if (tableIdx < 0) return false;
 
 	int r = tableIdx / columnCount(), c = tableIdx % columnCount();
-	QLabel *label = qobject_cast<QLabel*>(cellWidget(r, c));
-	if (!label) return false;
-	pPixmap = label->pixmap(Qt::ReturnByValue);
-	return true;
+	return GetPixmap(pPixmap, r, c);
 }
 
-bool IconTable::GetCurPixmap(vector<SelectInfo> &pIconList) const
+bool IconTable::GetCurPixmap(QPixmap &pPixmap, int pOfsRow, int pOfsCol) const
 {
 	Zone selZone;
-	if (!GetSelectZone(selZone)) {
-		pIconList.clear();
+	if (!GetSelectZone(selZone)) return false;
+	int row = selZone[0].r+pOfsRow, col = selZone[0].c+pOfsCol;
+	if (row < 0 || col < 0 || row >= rowCount() || col >= columnCount())
 		return false;
-	}
-
-	int cnt = 0;
-	pIconList.resize(selZone.rows() * selZone.cols());
-	for (int r = selZone[0].r; r <= selZone[1].r; r++) {
-		for (int c = selZone[0].c; c <= selZone[1].c; c++) {
-			SelectInfo &selInfo = pIconList[cnt++];
-			int idx = r * columnCount() + c;
-			selInfo.mIconIdx = (idx >= 0 && idx < mTable2ID.size())? mTable2ID[idx] : -1;
-			QLabel *label = qobject_cast<QLabel*>(cellWidget(r, c));
-			selInfo.mPixmap = (label)? label->pixmap(Qt::ReturnByValue) : QPixmap("");
-		}
-	}
-	return true;
+	return GetPixmap(pPixmap, row, col);
 }
 
 bool IconTable::eventFilter(QObject *obj, QEvent *e)

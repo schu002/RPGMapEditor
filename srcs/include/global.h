@@ -14,6 +14,10 @@ using namespace std;
 
 typedef vector<string> stringVector;
 typedef unordered_set<string> stringSet;
+template <typename Key>
+using hashSet = std::unordered_set<Key>;
+template <typename Key, typename Value>
+using hashMap = std::unordered_map<Key, Value>;
 
 #define	L_OS_WINDOWS	1
 

@@ -6,8 +6,36 @@
 #define L_KEY_MAPDATA	"MapData"
 #define L_CR			"<cr>"
 
+class PixmapDelegate : public QStyledItemDelegate {
+public:
+    explicit PixmapDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {}
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override {
+        // 【デバッグ】背景を黒で塗る（隙間が見えやすくなる）
+        painter->fillRect(option.rect, Qt::white);
+
+        QVariant value = index.data(Qt::DecorationRole);
+        if (value.isValid() && value.canConvert<QPixmap>()) {
+	        QPixmap pixmap = qvariant_cast<QPixmap>(value);
+	        // Pixmap をセル全体にピッタリ描画
+	        QRect targetRect = option.rect.adjusted(0, 0, 0, 0);
+	        painter->drawPixmap(targetRect, pixmap);
+        }
+    }
+
+    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &) const override {
+        return QSize(32, 32);
+    }
+
+private:
+    QPixmap pixmap;
+};
+
+
 MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, IconTable *pIconTable, int pRowNum, int pColNum)
- :	QTableWidget(pParent), mMainWin(pMainWin), mIconTable(pIconTable), mAttr(0)
+ :	QTableWidget(pParent), mMainWin(pMainWin), mIconTable(pIconTable),
+	mAttr(0), mPixSize(L_PIXSIZE, L_PIXSIZE)
 {
 	if (pRowNum <= 0) pRowNum = L_DEFALUT_MAPSIZE_ROW;
 	if (pColNum <= 0) pColNum = L_DEFALUT_MAPSIZE_COL;
@@ -16,27 +44,24 @@ MapTable::MapTable(QWidget *pParent, MainWindow *pMainWin, IconTable *pIconTable
 	setEditTriggers(QAbstractItemView::NoEditTriggers); // 編集不可にする
 	setSelectionMode(QAbstractItemView::NoSelection);
 	setStyleSheet("QTableView::item:selected { background: #B4D4FF; }"); // 選択時の色（デフォルトの青）
+	setStyleSheet("QTableWidget::item { padding: 0px; margin: 0px; }");
 	setIconSize(QSize(L_PIXSIZE, L_PIXSIZE));
 
 	setContentsMargins(0, 0, 0, 0);
 	QHeaderView *hHeader = horizontalHeader();
 	QHeaderView *vHeader = verticalHeader();
-	// hHeader->setSectionResizeMode(QHeaderView::Fixed);
-	// vHeader->setSectionResizeMode(QHeaderView::Fixed);
 	hHeader->setDefaultSectionSize(L_PIXSIZE);
 	vHeader->setDefaultSectionSize(L_PIXSIZE);
 	hHeader->setMinimumSectionSize(32);
 	vHeader->setMinimumSectionSize(32);
 	hHeader->setSectionsClickable(false);
 	vHeader->setSectionsClickable(false);
-	// ヘッダーをフラットなデザインにする
-//	hHeader->setStyleSheet("QHeaderView::section { border: none; background: whitesmoke; padding: 0px; }");
-//	vHeader->setStyleSheet("QHeaderView::section { border: none; background: whitesmoke; padding: 0px; }");
 
 	for (int r = 0; r < pRowNum; r++) setRowHeight(r, L_PIXSIZE);
 	for (int c = 0; c < pColNum; c++) setColumnWidth(c, L_PIXSIZE);
 
-	connect(this, SIGNAL(cellPressed(int,int)), this, SLOT(slot_OnPressed(int,int)));
+	setItemDelegate(new PixmapDelegate(this));
+
 	connect(this, SIGNAL(currentCellChanged(int,int,int,int)), this, SLOT(slot_OnCurrentChanged(int,int,int,int)));
 	mData.resize(pRowNum * pColNum);
 	fill(mData.begin(), mData.end(), -1);
@@ -53,6 +78,12 @@ void MapTable::Init(int pRowNum, int pColNum, vector<int> *pData,
 	QPixmap pix;
 	for (int r = 0; r < pRowNum; r++) {
 		for (int c = 0; c < pColNum; c++) {
+			QTableWidgetItem *witem = item(r, c);
+			if (!witem) {
+				witem = new QTableWidgetItem();
+				witem->setTextAlignment(Qt::AlignCenter);
+				setItem(r, c, witem);
+			}
 			if (pIsSelect && (mAttr & L_Attr_SelectMode)) {
 				selFlg1 = (pSelZone && pSelZone->contains(r, c))? true : false;
 				selFlg2 = mSelZone.contains(r, c);
@@ -81,12 +112,11 @@ void MapTable::Close()
 	int rowNum = rowCount(), colNum = columnCount();
 	for (int r = 0; r < rowNum; r++) {
 		for (int c = 0; c < colNum; c++) {
-			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
-			if (label) label->setPixmap(QPixmap(""));
+			QTableWidgetItem *witem = item(r, c);
+			if (witem) witem->setData(Qt::DecorationRole, QPixmap(""));
 		}
 	}
 	mData.clear();
-	mIconList.clear();
 	mUndoStack.clear();
 	mRedoStack.clear();
 }
@@ -119,8 +149,12 @@ bool MapTable::ExportFile(const QString &pFileName)
 
 	for (int r = 0; r < rowNum; r++) {
 		for (int c = 0; c < colNum; c++) {
-			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
-			QPixmap pixmap = (label && label->pixmap())? *label->pixmap() : QPixmap();
+			QTableWidgetItem *witem = item(r, c);
+			QVariant value = witem->data(Qt::DecorationRole);
+			QPixmap pixmap;
+	        if (value.isValid() && value.canConvert<QPixmap>()) {
+	        	pixmap = qvariant_cast<QPixmap>(value);
+	        }
 			// 画像を適切な位置に配置
             int x = c * L_PIXSIZE, y = r * L_PIXSIZE;
             painter.drawPixmap(x, y, pixmap);
@@ -151,6 +185,12 @@ void MapTable::ChangeSize(int pRowNum, int pColNum)
 
 	for (int r = 0; r < pRowNum; r++) {
 		for (int c = 0; c < pColNum; c++) {
+			QTableWidgetItem *witem = item(r, c);
+			if (!witem) {
+				witem = new QTableWidgetItem();
+				witem->setTextAlignment(Qt::AlignCenter);
+				setItem(r, c, witem);
+			}
 			int idx1 = r * pColNum + c;
 			int idx2 = r * colNum + c;
 			mData[idx1] = (idx2 < oldData.size() && r < rowNum && c < colNum)? oldData[idx2] : -1;
@@ -170,10 +210,8 @@ void MapTable::SetDrawGrid(bool onoff)
 			int idx = r * colNum + c;
 			int iconIdx = mData[idx];
 			if (iconIdx < 0 || !mIconTable->GetPixmap(pix, iconIdx)) continue;
-			QLabel *label = qobject_cast<QLabel *>(cellWidget(r, c));
-			if (!label) continue;
-			label->setPixmap(pix);
-			label->setFixedSize(pixSize, pixSize);
+			QTableWidgetItem *witem = item(r, c);
+			if (witem) witem->setData(Qt::DecorationRole, pix);
 		}
 	}
 }
@@ -200,12 +238,6 @@ void MapTable::SetCopyMode(bool onoff)
 	}
 }
 
-void MapTable::NotifyIconChanged()
-{
-	mIconTable->GetSelectZone(mIconZone);
-	mIconTable->GetCurPixmap(mIconList);
-}
-
 int MapTable::GetIconIdx(int row, int col) const
 {
 	int rowNum = rowCount(), colNum = columnCount();
@@ -216,24 +248,17 @@ int MapTable::GetIconIdx(int row, int col) const
 	return mData[idx];
 }
 
-const SelectInfo * MapTable::GetIconInfo(int row, int col) const
-{
-	int iconRow = (row-mSelZone[0].r) % mIconZone.rows();
-	int iconCol = (col-mSelZone[0].c) % mIconZone.cols();
-	int idx = iconRow * mIconZone.cols() + iconCol;
-	return (idx >= 0 && idx < mIconList.size())? &mIconList[idx] : NULL;
-}
-
 bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect, bool pIsUpdate)
 {
 	int rowNum = rowCount(), colNum = columnCount();
 	if (pRow < 0 || pCol < 0 || pRow >= rowNum || pCol >= colNum)
 		return false;
+
+	QTableWidgetItem *witem = item(pRow, pCol);
 	int idx = pRow * colNum + pCol;
 	if (pIconIdx < 0) {
 		if (!pIsUpdate || mData[idx] == pIconIdx) {
-			QLabel *label = qobject_cast<QLabel *>(cellWidget(pRow, pCol));
-			if (label) label->setPixmap(QPixmap(""));
+			if (witem) witem->setData(Qt::DecorationRole, QPixmap(""));
 			return false;
 		}
 	}
@@ -254,36 +279,32 @@ bool MapTable::SetPixmap(int pRow, int pCol, int pIconIdx, bool pIsSelect, bool 
 
 void MapTable::SetPixmap(int row, int col, const QPixmap &pixmap, int pShowFlg)
 {
-	QLabel *label = qobject_cast<QLabel *>(cellWidget(row, col));
-	if (!label) {
-		label = new QLabel(this);
-		label->setPixmap(pixmap);
-		label->setAlignment(Qt::AlignCenter);
-		setCellWidget(row, col, label);
-	} else {
-		label->setPixmap(pixmap);
-	}
-
-	if (pShowFlg >= 0) {
-		if (pShowFlg) {
-			label->show();
-		} else {
-			label->setPixmap(QPixmap(""));
-			label->hide();
-		}
+	QTableWidgetItem *witem = item(row, col);
+	if (!witem) return;
+	if (pShowFlg > 0) {
+		witem->setData(Qt::DecorationRole, pixmap);
+	} else if (pShowFlg == 0) {
+		witem->setData(Qt::DecorationRole, QPixmap(""));
 	}
 }
 
 void MapTable::DrawPixmapSelZone()
 {
-	if (mSelZone.empty() || mIconZone.empty()) return;
+	if (mSelZone.empty()) return;
+	Zone iconZone;
+	if (!mIconTable->GetSelectZone(iconZone)) return;
 
-	int rowNum = M_MAX(mSelZone.rows(), mIconZone.rows());
-	int colNum = M_MAX(mSelZone.cols(), mIconZone.cols());
+	int rowNum = M_MAX(mSelZone.rows(), iconZone.rows());
+	int colNum = M_MAX(mSelZone.cols(), iconZone.cols());
+	int incRow = (mSelZone[0].r < mPressPnt.r)? -1 : 1;
+	int incCol = (mSelZone[0].c < mPressPnt.c)? -1 : 1;
 	for (int r = mSelZone[0].r; r < mSelZone[0].r+rowNum; r++) {
 		for (int c = mSelZone[0].c; c < mSelZone[0].c+colNum; c++) {
-			const SelectInfo *iconInfo = GetIconInfo(r, c);
-			if (iconInfo) SetPixmap(r, c, iconInfo->mPixmap, true);
+			QPixmap pix;
+			int ofsRow = (r-mSelZone[0].r) % iconZone.rows();
+			int ofsCol = (c-mSelZone[0].c) % iconZone.cols();
+			if (!mIconTable->GetCurPixmap(pix, ofsRow, ofsCol)) continue;
+			SetPixmap(r, c, pix, true);
 		}
 	}
 }
@@ -461,8 +482,14 @@ bool MapTable::IsSelectAll() const
 			true : false;
 }
 
-void MapTable::slot_OnPressed(int row, int col)
+void MapTable::mousePressEvent(QMouseEvent *event)
 {
+	if (event->button() != Qt::LeftButton) return;
+
+	QModelIndex index = indexAt(event->pos());  // クリックされたセルのインデックスを取得
+	if (!index.isValid()) return;  // 無効なセルなら無視
+	int row = index.row(), col = index.column();
+
 	FinalizeMove();
 
 	mAttr |= L_Attr_MousePress;
@@ -491,6 +518,14 @@ void MapTable::slot_OnPressed(int row, int col)
 	}
 }
 
+void MapTable::GetIconMaxZone(Zone &zone) const
+{
+	Zone iconZone;
+	if (!mIconTable->GetSelectZone(iconZone)) return;
+	if (zone.rows() < iconZone.rows()) zone[1].r = zone[0].r + iconZone.rows() - 1;
+	if (zone.cols() < iconZone.cols()) zone[1].c = zone[0].c + iconZone.cols() - 1;
+}
+
 void MapTable::slot_OnCurrentChanged(int row, int col, int preRow, int preCol)
 {
 	if ((mAttr & L_Attr_MousePress) == 0) return;
@@ -505,6 +540,7 @@ void MapTable::slot_OnCurrentChanged(int row, int col, int preRow, int preCol)
 
 	// 選択されなくなったセルは元のアイコンに戻す
 	Zone newZone(mPressPnt, Point(row, col));
+	GetIconMaxZone(newZone);
 	ResetSelZonePixmap(&newZone);
 
 	mSelZone = newZone;
@@ -518,17 +554,26 @@ void MapTable::slot_OnCurrentChanged(int row, int col, int preRow, int preCol)
 // 入力を確定する
 void MapTable::FinalizeInput()
 {
-	if (mSelZone.empty() || mIconZone.empty()) return;
+	if (mSelZone.empty()) return;
+	Zone iconZone;
+	if (!mIconTable->GetSelectZone(iconZone)) return;
+
+	bool isMultiIcon = (iconZone.rows() == 1 && iconZone.cols() == 1)? false : true;
+	int iconIdx = (isMultiIcon)? -1 : mIconTable->GetCurIconIdx();
 
 	AddUndo(L_OPE_INPUT);
 
-	int rowNum = M_MAX(mSelZone.rows(), mIconZone.rows());
-	int colNum = M_MAX(mSelZone.cols(), mIconZone.cols());
+	int rowNum = M_MAX(mSelZone.rows(), iconZone.rows());
+	int colNum = M_MAX(mSelZone.cols(), iconZone.cols());
 	for (int r = mSelZone[0].r; r < mSelZone[0].r+rowNum; r++) {
 		for (int c = mSelZone[0].c; c < mSelZone[0].c+colNum; c++) {
-			const SelectInfo *iconInfo = GetIconInfo(r, c);
+			if (isMultiIcon) {
+				int ofsRow = (r-mSelZone[0].r) % iconZone.rows();
+				int ofsCol = (c-mSelZone[0].c) % iconZone.cols();
+				iconIdx = mIconTable->GetCurIconIdx(ofsRow, ofsCol);
+			}
 			int idx = r * columnCount() + c;
-			mData[idx] = (iconInfo)? iconInfo->mIconIdx : -1;
+			mData[idx] = iconIdx;
 		}
 	}
 	mSelZone.init();
