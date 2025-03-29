@@ -52,6 +52,7 @@ private:
 	void SetEditBtnEnable();
 	void ResetIconIdx();
 	bool ExportFile(const QTableWidget &pTableWgt, const QString &pFileName, int pColNum = 0) const;
+	bool ExportJson(const QString &pFileName) const;
 
 private:
 	string mFileName;	// マップデータファイル

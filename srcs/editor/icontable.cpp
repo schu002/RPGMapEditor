@@ -289,6 +289,12 @@ string IconTable::GetCurIconFileName() const
 	return (iconIdx >= 0 && iconIdx < mDatas.size())? mDatas[iconIdx].mFileName : "";
 }
 
+int IconTable::GetTableIdx(int pIconIdx) const
+{
+	if (pIconIdx < 0 || pIconIdx >= mDatas.size()) return -1;
+	return mDatas[pIconIdx].mTableIdx;
+}
+
 bool IconTable::GetPixmap(QPixmap &pixmap, int row, int col) const
 {
 	QTableWidgetItem *witem = item(row, col);

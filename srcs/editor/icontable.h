@@ -53,6 +53,7 @@ public:
 	bool GetPixmap(QPixmap &pPixmap, int pIconIdx) const;
 	bool GetCurPixmap(QPixmap &pPixmap, int pOfsRow = 0, int pOfsCol = 0) const;
 	int GetCurIconIdx(int pOfsRow = 0, int pOfsCol = 0) const;
+	int GetTableIdx(int pIconIdx) const;
 	void Clear();
 	void ResetIconIdx(vector<int> &pNewIconIDVec);
 

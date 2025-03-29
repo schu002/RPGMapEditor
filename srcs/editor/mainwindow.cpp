@@ -251,6 +251,30 @@ void MainWindow::onExport()
 	}
 }
 
+bool MainWindow::ExportJson(const QString &pFileName) const
+{
+	if (pFileName.isEmpty()) return false;
+
+	string fname = ConvToStr(pFileName);
+	FILE *fp = fopen(fname.c_str(), "w");
+	if (!fp) return 0;
+
+	fprintf(fp, "         \"data\":[");
+	for (int r = 0; r < mMapTable->rowCount(); r++) {
+		for (int c = 0; c < mMapTable->columnCount(); c++) {
+			int iconIdx = mMapTable->GetIconIdx(r, c);
+			int tblIdx = mIconTable->GetTableIdx(iconIdx);
+			if (r > 0 || c > 0) fprintf(fp, ", ");
+			fprintf(fp, "%d", tblIdx+1);
+		}
+	}
+	fprintf(fp, "],\n");
+	fprintf(fp, "         \"width\":%d,\n", mMapTable->columnCount());
+	fprintf(fp, "         \"height\":%d,\n", mMapTable->rowCount());
+	fclose(fp);
+	return true;
+}
+
 bool MainWindow::ExportFile(const QTableWidget &pTableWgt, const QString &pFileName, int pColNum) const
 {
 	if (pFileName.isEmpty()) return false;
