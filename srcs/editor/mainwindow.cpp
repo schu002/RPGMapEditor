@@ -1,14 +1,6 @@
 #include "maindef.h"	
 #include "mainwindow_moc.h"
 
-// マップデータファイルで使用するキー
-#define L_KEY_ICONDIR	"IconDir"
-#define L_KEY_ICONFILE	"IconFile"
-#define L_KEY_ICONSIZE	"IconSize"
-#define L_KEY_MAPSIZE	"MapSize"
-#define L_KEY_MAPDATA	"MapData"
-#define L_CR			"<cr>"
-
 namespace {
 // トリミング関数
 const string WHITESPACE = " \n\r\t\f\v";
@@ -240,7 +232,7 @@ void MainWindow::onSaveAs()
             M_QSTR(Message::TrC(MG_File_SaveAs)), mDataDir.c_str(), M_QSTR(Message::TrC(MG_MapDataFile)));
 	if (!SetMapFileName(fname)) return;
 
-	WriteFile(mFileName);
+	WriteFile(mDataDir + "/" + mFileName);
 	string str = ConvToStr(fname);
 	statusBar()->showMessage(M_QSTR(Message::TrC(MG_SaveMapData, str.c_str())));
 }
@@ -252,11 +244,49 @@ void MainWindow::onExport()
 	if (filePath.isEmpty()) return;
 	if (!filePath.endsWith(".png", Qt::CaseInsensitive)) filePath += ".png";
 
-	if (mMapTable->ExportFile(filePath)) {
+	if (ExportFile(*mMapTable, filePath)) {
 		string str = ConvToStr(filePath);
 		QMessageBox::information(this, M_QSTR(Message::TrC(MG_File_Export)),
 			M_QSTR(Message::TrC(MG_ExportMapData, str.c_str())));
 	}
+}
+
+bool MainWindow::ExportFile(const QTableWidget &pTableWgt, const QString &pFileName, int pColNum) const
+{
+	if (pFileName.isEmpty()) return false;
+
+	int rowNum = pTableWgt.rowCount(), colNum = pTableWgt.columnCount();
+	int newRows = rowNum, newCols = colNum;
+	if (pColNum > 0 && pColNum != colNum) {
+		int cnt = rowNum * colNum;
+		newRows = (cnt % pColNum)? cnt/pColNum+1 : cnt/pColNum;
+		newCols = pColNum;
+	}
+	QImage finalImage(L_PIXSIZE*newCols, L_PIXSIZE*newRows, QImage::Format_ARGB32);
+    finalImage.fill(Qt::white);
+    QPainter painter(&finalImage);
+
+	for (int r = 0; r < rowNum; r++) {
+		for (int c = 0; c < colNum; c++) {
+			QTableWidgetItem *witem = pTableWgt.item(r, c);
+			QVariant value = witem->data(Qt::DecorationRole);
+			QPixmap pixmap;
+	        if (value.isValid() && value.canConvert<QPixmap>()) {
+	        	pixmap = qvariant_cast<QPixmap>(value);
+	        }
+			// 画像を適切な位置に配置
+			int row = r, col = c;
+			if (pColNum > 0 && pColNum != colNum) {
+				int num = r*colNum + c;
+				row = num/pColNum, col = num%pColNum;
+			}
+            painter.drawPixmap(col * L_PIXSIZE, row * L_PIXSIZE, pixmap);
+		}
+	}
+	painter.end();
+
+	finalImage.save(pFileName, "PNG");
+	return true;
 }
 
 void MainWindow::onExit()
@@ -352,7 +382,8 @@ void MainWindow::onSetting()
 	if (dlg->exec() != QDialog::Accepted) return;
 
 	string iconDir(dlg->GetIconDir().toUtf8().constData());
-	int imgCnt = mIconTable->Init(iconDir);
+	vector<int> newIconID;
+	int imgCnt = mIconTable->Init(iconDir, NULL, &newIconID);
 	if (imgCnt == 0) {
 		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileNotRegist)));
 		QMessageBox::critical(this, M_QSTR(Message::TrC(MG_Error)),
@@ -361,6 +392,7 @@ void MainWindow::onSetting()
 		statusBar()->showMessage(M_QSTR(Message::TrC(MG_IconFileLoaded, imgCnt)), 3000);
 	}
 
+	mMapTable->ResetIconIdx(newIconID);
 	rowNum = dlg->GetMapSizeRow();
 	colNum = dlg->GetMapSizeCol();
 	mMapTable->ChangeSize(rowNum, colNum);
@@ -511,12 +543,22 @@ int MainWindow::WriteFile(const string &pFileName)
 	FILE *fp = fopen(pFileName.c_str(), "w");
 	if (!fp) return 0;
 
+	ResetIconIdx();
+
 	mIconTable->OutputFile(fp);
 	mMapTable->OutputFile(fp);
 	fclose(fp);
 	mIsModified = false;
 	SetTitle();
 	return 1;
+}
+
+// アイコン番号をpngファイル名順に振り直す
+void MainWindow::ResetIconIdx()
+{
+	vector<int> newIconID;
+	mIconTable->ResetIconIdx(newIconID);
+	mMapTable->ResetIconIdx(newIconID);
 }
 
 void MainWindow::closeEvent(QCloseEvent *pEvent)

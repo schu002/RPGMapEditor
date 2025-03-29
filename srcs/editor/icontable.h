@@ -29,8 +29,8 @@ struct hash<IconData> {
 };
 
 typedef vector<IconData>	IconDataVector;
-typedef hashSet<IconData>					IconDataSet;
-typedef hashSet<IconData>::const_iterator	IconDataSetCItr;
+typedef hashMap<IconData, int>		IconDataMap;
+typedef IconDataMap::const_iterator	IconDataMapCItr;
 
 
 class IconTable : public QTableWidget
@@ -40,10 +40,10 @@ class IconTable : public QTableWidget
 public:
 	IconTable(QWidget *pParent, MainWindow *pMainWin);
 
-	int Init(const string &pDir, const IconDataVector *pDatas = NULL);
+	int Init(const string &pDir, const IconDataVector *pDatas = NULL, vector<int> *newIconIDVec = NULL);
 	void Close();
 	const string & GetDir() const { return mIconDir; }
-	void OutputFile(FILE *fp);
+	void OutputFile(FILE *fp) const;
 	void Move(int pVec);
 	int GetSelectRowNum() const;
 	int GetSelectColNum() const;
@@ -54,6 +54,7 @@ public:
 	bool GetCurPixmap(QPixmap &pPixmap, int pOfsRow = 0, int pOfsCol = 0) const;
 	int GetCurIconIdx(int pOfsRow = 0, int pOfsCol = 0) const;
 	void Clear();
+	void ResetIconIdx(vector<int> &pNewIconIDVec);
 
 private:
 	bool GetPixmap(QPixmap &pixmap, int row, int col) const;

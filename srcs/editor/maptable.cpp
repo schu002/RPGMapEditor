@@ -1,11 +1,6 @@
 #include "maindef.h"
 #include "maptable_moc.h"
 
-#define L_PIXSIZE		32
-#define L_KEY_MAPSIZE	"MapSize"
-#define L_KEY_MAPDATA	"MapData"
-#define L_CR			"<cr>"
-
 class PixmapDelegate : public QStyledItemDelegate {
 public:
     explicit PixmapDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {}
@@ -131,39 +126,12 @@ void MapTable::OutputFile(FILE *fp)
 	for (int r = 0; r < rowNum; r++) {
 		if (r > 0) fprintf(fp, "\t");
 		for (int c = 0; c < colNum; c++) {
-			fprintf(fp, "%3d,", GetIconIdx(r, c)+1);
+			int idx = GetIconIdx(r, c);
+			fprintf(fp, "%3d,", idx+1);
 		}
 		if (r < rowNum-1) fprintf(fp, "%s", L_CR);
 		fprintf(fp, "\n");
 	}
-}
-
-bool MapTable::ExportFile(const QString &pFileName)
-{
-	if (pFileName.isEmpty()) return false;
-
-	int rowNum = rowCount(), colNum = columnCount();
-	QImage finalImage(L_PIXSIZE*colNum, L_PIXSIZE*rowNum, QImage::Format_ARGB32);
-    finalImage.fill(Qt::white);
-    QPainter painter(&finalImage);
-
-	for (int r = 0; r < rowNum; r++) {
-		for (int c = 0; c < colNum; c++) {
-			QTableWidgetItem *witem = item(r, c);
-			QVariant value = witem->data(Qt::DecorationRole);
-			QPixmap pixmap;
-	        if (value.isValid() && value.canConvert<QPixmap>()) {
-	        	pixmap = qvariant_cast<QPixmap>(value);
-	        }
-			// 画像を適切な位置に配置
-            int x = c * L_PIXSIZE, y = r * L_PIXSIZE;
-            painter.drawPixmap(x, y, pixmap);
-		}
-	}
-	painter.end();
-
-	finalImage.save(pFileName, "PNG");
-	return true;
 }
 
 void MapTable::ChangeSize(int pRowNum, int pColNum)
@@ -197,6 +165,16 @@ void MapTable::ChangeSize(int pRowNum, int pColNum)
 		}
 	}
 	mData.resize(pRowNum * pColNum);
+}
+
+void MapTable::ResetIconIdx(const vector<int> &pNewIconIDVec)
+{
+	for (int i = 0; i < mData.size(); i++) {
+		int idx = mData[i];
+		if (idx >= 0 && idx < pNewIconIDVec.size()) {
+			mData[i] = pNewIconIDVec[idx];
+		}
+	}
 }
 
 void MapTable::SetDrawGrid(bool onoff)

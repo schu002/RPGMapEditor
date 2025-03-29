@@ -328,6 +328,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\srcs\editor\literal.h" />
     <ClInclude Include="resource\resource.h" />
     <CustomBuild Include="..\srcs\editor\icontable.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug_DLL|Win32'">$(MOCEXE) -i %(RootDir)%(Directory)icontable.h -o %(RootDir)%(Directory)icontable_moc.h

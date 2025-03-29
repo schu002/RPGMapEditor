@@ -1,13 +1,8 @@
 #include "maindef.h"
 #include "icontable_moc.h"
 
-#define L_KEY_ICONDIR	"IconDir"
-#define L_KEY_ICONFILE	"IconFile"
-#define L_KEY_ICONTABLE	"IconTable"
-#define L_CR			"<cr>"
-#define L_NUM_ROW		10
-#define L_NUM_COL		5
-#define L_PIXSIZE		32
+#define L_NUM_ROW	10
+#define L_NUM_COL	5
 
 typedef hashMap<string, int>					string2intMap;
 typedef hashMap<string, int>::const_iterator	string2intMapCItr;
@@ -32,16 +27,16 @@ IconTable::IconTable(QWidget *pParent, MainWindow *pMainWin)
 	viewport()->installEventFilter(this);
 }
 
-int IconTable::Init(const string &pDir, const IconDataVector *pDatas)
+int IconTable::Init(const string &pDir, const IconDataVector *pDatas, vector<int> *newIconIDVec)
 {
 	if (pDir.empty()) return 0;
 
 	// 現在の配置を覚えておく
-	IconDataSet iconSet;
+	IconDataMap iconMap;
 	const IconDataVector &datas = (pDatas)? *pDatas : mDatas;
 	for (int i = 0; i < datas.size(); i++) {
 		const IconData &data = datas[i];
-		if (!data.mFileName.empty()) iconSet.insert(data);
+		if (!data.mFileName.empty()) iconMap[data] = i;
 	}
 
 	Clear();
@@ -56,11 +51,11 @@ int IconTable::Init(const string &pDir, const IconDataVector *pDatas)
 	while (fitr.Next()) {
 		const char *fname = fitr.GetFileName();
 		IconData data(fname);
-		IconDataSetCItr itr = (isSameDir)? iconSet.find(data) : iconSet.end();
+		IconDataMapCItr itr = iconMap.find(data);
 		if (!pDatas) {
-			if (itr != iconSet.end()) data.mTableIdx = itr->mTableIdx; // 前回の表示位置
+			if (itr != iconMap.end()) data.mTableIdx = itr->first.mTableIdx; // 前回の表示位置
 			mDatas.push_back(data);
-		} else if (itr == iconSet.end()) {
+		} else if (itr == iconMap.end()) {
 			mDatas.push_back(data);
 		}
 	}
@@ -114,10 +109,43 @@ int IconTable::Init(const string &pDir, const IconDataVector *pDatas)
 		}
 	}
 
+	if (newIconIDVec && isSameDir) {
+		newIconIDVec->resize(mDatas.size());
+		fill(newIconIDVec->begin(), newIconIDVec->end(), -1);
+		for (int i = 0; i < mDatas.size(); i++) {
+			IconData &data = mDatas[i];
+			IconDataMapCItr itr = iconMap.find(data);
+			if (itr != iconMap.end()) {
+				int oldIdx = itr->second;
+				(*newIconIDVec)[oldIdx] = i;
+			}
+		}
+	}
+
 	setCurrentCell(0, 0);
 	return mDatas.size();
 }
 	
+bool compare_data(IconData &d1, IconData &d2) { return d1.mFileName < d2.mFileName; }
+
+// アイコン番号をpngファイル名順に振り直す
+void IconTable::ResetIconIdx(vector<int> &pNewIconIDVec)
+{
+	sort(mDatas.begin(), mDatas.end(), compare_data);
+
+	pNewIconIDVec.resize(mDatas.size());
+	fill(pNewIconIDVec.begin(), pNewIconIDVec.end(), -1);
+
+	for (int idx = 0; idx < mDatas.size(); idx++) {
+		IconData &data = mDatas[idx];
+		int oldIdx = (data.mTableIdx >= 0)? mTable2ID[data.mTableIdx] : -1;
+		if (oldIdx >= 0) {
+			pNewIconIDVec[oldIdx] = idx;
+			mTable2ID[data.mTableIdx] = idx;
+		}
+	}
+}
+
 void IconTable::Close()
 {
 	/* int rowNum = rowCount(), colNum = columnCount();
@@ -133,9 +161,10 @@ void IconTable::Close()
 	mTable2ID.clear();
 }
 
-void IconTable::OutputFile(FILE *fp)
+void IconTable::OutputFile(FILE *fp) const
 {
 	fprintf(fp, "%s = %s\n", L_KEY_ICONDIR, mIconDir.c_str());
+
 	for (int i = 0; i < mDatas.size(); i++) {
 		const IconData &data = mDatas[i];
 		fprintf(fp, "%s%d = %s:%d\n", L_KEY_ICONFILE, i+1, data.mFileName.c_str(), data.mTableIdx);

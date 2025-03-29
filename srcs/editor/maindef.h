@@ -5,6 +5,7 @@
 #include "qtpack.h"
 #include "common/commonpack.h"
 
+#include "literal.h"
 #include "mapeditor.hh"
 #include "icontable.h"
 #include "journal.h"

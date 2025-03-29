@@ -50,6 +50,8 @@ private:
 	void closeEvent(QCloseEvent *pEvent);
 	void SetTitle();
 	void SetEditBtnEnable();
+	void ResetIconIdx();
+	bool ExportFile(const QTableWidget &pTableWgt, const QString &pFileName, int pColNum = 0) const;
 
 private:
 	string mFileName;	// マップデータファイル

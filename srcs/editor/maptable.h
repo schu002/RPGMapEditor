@@ -30,9 +30,9 @@ public:
 			const Zone *pSelZone = NULL, const Point *pCurPos = NULL,
 			bool pIsSelect = true);
 	void ChangeSize(int pRowNum, int pColNum);
+	void ResetIconIdx(const vector<int> &pNewIconIDVec);
 	void Close();
 	void OutputFile(FILE *fp);
-	bool ExportFile(const QString &pFileName);
 
 	// row colの位置のアイコンファイルIDを取得する
 	int GetIconIdx(int row, int col) const;
